@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Court {
+  id              Int      @id @default(autoincrement())
+  name            String
+  address         String
+  latitude        Float?
+  longitude       Float?
+  contact_number  String?
+  zalo_url        String?
+  maps_url        String?
+  image_urls      String[]
+  num_of_courts   Int?
+  price_range     String?
+  tags            String[]
+  created_at      DateTime @default(now())
+
+  posts           WanderingPost[]
+}
+
+model WanderingPost {
+  id              Int      @id @default(autoincrement())
+  court_id        Int?
+  court           Court?   @relation(fields: [court_id], references: [id], onDelete: SetNull)
+  court_name_raw  String?
+  start_time      DateTime
+  end_time        DateTime
+  level_required  String?
+  slot_needed     Int      @default(1)
+  price_per_slot  String?
+  source_url      String?
+  content_raw     String?
+  created_at      DateTime @default(now())
+}
