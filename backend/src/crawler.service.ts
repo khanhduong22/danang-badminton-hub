@@ -127,7 +127,9 @@ export class CrawlerService {
       },
     });
 
-    // Chạy Engine
-    await crawler.run([FB_GROUP_URL]);
+    // Chạy Engine với uniqueKey ngẫu nhiên để ép Crawlee không bỏ qua Request cũ
+    await crawler.run([
+      { url: FB_GROUP_URL, uniqueKey: Date.now().toString() }
+    ]);
   }
 }
