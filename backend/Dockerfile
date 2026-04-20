@@ -16,7 +16,8 @@ RUN npm install
 
 COPY . .
 
-RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
+RUN echo 'DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?schema=public"' > .env
+RUN npx prisma generate
 RUN npm run build
 
 EXPOSE 3001
