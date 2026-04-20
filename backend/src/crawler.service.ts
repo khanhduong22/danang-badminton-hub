@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import * as puppeteer from 'puppeteer-core';
+import { PuppeteerCrawler, ProxyConfiguration } from 'crawlee';
 import { PrismaService } from './prisma.service';
 
 const FB_GROUP_URL = process.env.FB_GROUP_URL || "https://mbasic.facebook.com/groups/caulongdanang123";
@@ -11,80 +11,123 @@ export class CrawlerService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  // Chạy mỗi 1 phút vào các giờ cao điểm: từ 17:00 đến 19:59 (GMT+7 Ho Chi Minh)
-  @Cron('*/1 17-19 * * *', { timeZone: 'Asia/Ho_Chi_Minh' })
+  @Cron('*/1 16-19 * * *', { timeZone: 'Asia/Ho_Chi_Minh' })
   async handlePeakHourCron() {
-    this.logger.debug('Kích hoạt Crawler giờ CAO ĐIỂM (1 phút/lần)');
-    await this.runCrawler();
+    this.logger.debug('Kích hoạt Crawlee giờ CAO ĐIỂM (1 phút/lần)');
+    await this.runCrawlee();
   }
 
-  // Chạy mỗi 5 phút vào các giờ thấp điểm (các giờ còn lại)
-  @Cron('*/5 0-16,20-23 * * *', { timeZone: 'Asia/Ho_Chi_Minh' })
+  @Cron('*/5 0-15,20-23 * * *', { timeZone: 'Asia/Ho_Chi_Minh' })
   async handleOffPeakCron() {
-    this.logger.debug('Kích hoạt Crawler giờ THẤP ĐIỂM (5 phút/lần)');
-    await this.runCrawler();
+    this.logger.debug('Kích hoạt Crawlee giờ THẤP ĐIỂM (5 phút/lần)');
+    await this.runCrawlee();
   }
 
-  async runCrawler() {
-    this.logger.log("🕷️ Bắt đầu cào dữ liệu Facebook tìm vãng lai...");
+  async runCrawlee() {
+    this.logger.log("🕷️ Bắt đầu Crawlee cào nhóm Facebook...");
 
-    let browser;
-    try {
-      browser = await puppeteer.launch({
-        headless: true,
-        executablePath: process.env.CHROME_BIN || "/usr/bin/google-chrome-stable",
-        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    // Thiết lập Proxy nếu có trong .env
+    let proxyConfiguration: ProxyConfiguration | undefined;
+    if (process.env.PROXY_URL) {
+      this.logger.log("Gắn chạy qua Proxy Webshare: " + process.env.PROXY_URL);
+      proxyConfiguration = new ProxyConfiguration({
+        proxyUrls: [process.env.PROXY_URL],
       });
-    } catch (err) {
-      this.logger.error("Lỗi khởi tạo Puppeteer", err);
-      return;
     }
 
-    try {
-      const page = await browser.newPage();
-      await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36");
+    const crawler = new PuppeteerCrawler({
+      proxyConfiguration,
+      // Tính năng chạy ngầm (true) hoặc hiện UI nếu test local
+      headless: process.env.NODE_ENV === 'production' || process.env.NODE_ENV === undefined,
+      maxRequestRetries: 2,
+      launchContext: {
+        launchOptions: {
+          executablePath: process.env.CHROME_BIN || undefined,
+          args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-blink-features=AutomationControlled"],
+        }
+      },
+      // Middleware trước khi request bơi đi
+      preNavigationHooks: [
+        async (crawlingContext) => {
+          const { page } = crawlingContext;
+          // Set Fingerprint tĩnh nhẹ
+          await page.setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36");
+          
+          // Nạp Session Cookie nếu có  (Định dạng: c_user=123; xs=456)
+          if (process.env.FB_COOKIE) {
+            const rawCookies = process.env.FB_COOKIE.split(';').map(c => c.trim()).filter(Boolean);
+            const cookies = rawCookies.map(c => {
+              const [name, ...rest] = c.split('=');
+              return { name, value: rest.join('='), domain: '.facebook.com' };
+            });
+            await page.setCookie(...cookies);
+          }
+        }
+      ],
+      // Xử lý chính mạch Request
+      requestHandler: async ({ page, request, log }) => {
+        log.info(`Đang truy cập ${request.url}...`);
+        
+        // Mbasic đôi khi dính Checkpoint chuyển qua URL /login
+        const currentUrl = page.url();
+        if (currentUrl.includes('/login') || currentUrl.includes('/checkpoint')) {
+          log.error("💥 Session/Cookie bị văng hoặc chặn! Yêu cầu thay Cookie mới.");
+          return;
+        }
 
-      await page.goto(FB_GROUP_URL, { waitUntil: "networkidle2" });
-      
-      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-      for (let i = 0; i < 3; i++) {
-          await page.evaluate(() => window.scrollBy(0, window.innerHeight));
-          await sleep(2000);
-      }
+        // AutoScroll 3 lần
+        const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+        for (let i = 0; i < 3; i++) {
+          await page.evaluate(() => window.scrollBy(0, window.innerHeight * 2));
+          await sleep(1500);
+        }
 
-      const posts = await page.evaluate(() => {
-          const items = Array.from(document.querySelectorAll('div[data-ft]'));
-          return items.map(item => (item as HTMLElement).innerText || "").filter(t => t.toLowerCase().includes("vãng lai") || t.toLowerCase().includes("tuyển"));
-      });
+        // Trích xuất văn bản từ thẻ
+        const posts = await page.evaluate(() => {
+          const items = Array.from(document.querySelectorAll('div, p, span'));
+          const strings = items.map(item => (item as HTMLElement).innerText || "").filter(t => t.length > 20);
+          return Array.from(new Set(strings));
+        });
 
-      this.logger.log(`✅ Lọc được ${posts.length} bài đăng tiềm năng từ group.`);
+        const vangLaiPosts = posts.filter(t => t.toLowerCase().includes("vãng lai") || t.toLowerCase().includes("tuyển"));
 
-      for (const text of posts) {
+        log.info(`✅ Bóc tách được ${vangLaiPosts.length} bài đăng tiềm năng`);
+
+        for (const text of vangLaiPosts) {
           const courtNameMatch = text.match(/sân\s+([a-zA-Z0-9\s]+)/i);
-          const courtNameRaw = courtNameMatch ? courtNameMatch[1].trim() : "Chưa xác định";
+          const courtNameRaw = courtNameMatch ? courtNameMatch[1].trim().slice(0, 50) : "Chưa xác định";
           
           try {
-              await this.prisma.wanderingPost.create({
-                data: {
-                  court_name_raw: courtNameRaw,
-                  content_raw: text,
-                  start_time: new Date(), 
-                  end_time: new Date(Date.now() + 7200000), // Mặc định 2 giờ
-                  slot_needed: text.match(/\d+/) ? parseInt(text.match(/\d+/)![0], 10) : 1,
-                  price_per_slot: "Liên hệ trực tiếp",
-                  source_url: FB_GROUP_URL
-                }
+              // UpSert dựa theo độ dài nội dung để không lưu trùng bài cũ
+              const existing = await this.prisma.wanderingPost.findFirst({
+                where: { content_raw: text }
               });
-              this.logger.log(`🟢 Đã lưu bài tìm vãng lai tại: ${courtNameRaw}`);
+
+              if (!existing) {
+                await this.prisma.wanderingPost.create({
+                  data: {
+                    court_name_raw: courtNameRaw,
+                    content_raw: text,
+                    start_time: new Date(), 
+                    end_time: new Date(Date.now() + 7200000), 
+                    slot_needed: text.match(/\d+/) ? parseInt(text.match(/\d+/)![0], 10) : 1,
+                    price_per_slot: "Liên hệ trực tiếp",
+                    source_url: FB_GROUP_URL
+                  }
+                });
+                log.info(`🟢 Đã ném vào Database một bài vãng lai cho sân: ${courtNameRaw}`);
+              }
           } catch (dbErr) {
-              this.logger.error("Lỗi insert DB:", dbErr);
+              log.error("Database Lỗi:", dbErr);
           }
-      }
-    } catch (e) {
-      this.logger.error("Crawler báo lỗi nội bộ:", e);
-    } finally {
-      await browser.close();
-      this.logger.log("Đã đóng browser.");
-    }
+        }
+      },
+      failedRequestHandler: ({ request, log }) => {
+        log.error(`Request ${request.url} failed qua nhieu lan thử: \n${request.errorMessages}`);
+      },
+    });
+
+    // Chạy Engine
+    await crawler.run([FB_GROUP_URL]);
   }
 }
