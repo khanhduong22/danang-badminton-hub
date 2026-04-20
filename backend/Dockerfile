@@ -1,6 +1,5 @@
 FROM node:18-bullseye-slim
 
-# Install dependencies for Puppeteer & Prisma
 RUN apt-get update \
     && apt-get install -y wget gnupg openssl \
     && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
@@ -17,10 +16,9 @@ RUN npm install
 
 COPY . .
 
-# Generate Prisma Client & Build TypeScript
 RUN npx prisma generate
 RUN npm run build
 
 EXPOSE 3001
 
-CMD ["npm", "start"]
+CMD ["npm", "run", "start:prod"]

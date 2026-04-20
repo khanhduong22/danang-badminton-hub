@@ -24,7 +24,7 @@ export function Navbar() {
             <span className="hidden sm:inline">Bản đồ Sân</span>
           </Link>
           <Link
-            href="#matchmaking"
+            href="/vang-lai"
             className="transition-colors hover:text-primary flex items-center gap-2 text-muted-foreground"
           >
             <Users className="h-4 w-4" />
