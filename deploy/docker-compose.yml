@@ -14,6 +14,18 @@ services:
       - db-data:/var/lib/postgresql/data
     restart: unless-stopped
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.13
+    container_name: badminton_meilisearch
+    environment:
+      - MEILI_MASTER_KEY=supersecretmeilisearchkey
+      - MEILI_NO_ANALYTICS=true
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili-data:/meili_data
+    restart: unless-stopped
+
   backend:
     build: ../backend
     container_name: badminton_backend
@@ -29,3 +41,4 @@ services:
 
 volumes:
   db-data:
+  meili-data:
