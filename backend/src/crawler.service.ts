@@ -104,7 +104,7 @@ export class CrawlerService {
               });
 
               if (!existing) {
-                await this.prisma.wanderingPost.create({
+                const newPost = await this.prisma.wanderingPost.create({
                   data: {
                     court_name_raw: courtNameRaw,
                     content_raw: text,
@@ -115,7 +115,24 @@ export class CrawlerService {
                     source_url: FB_GROUP_URL
                   }
                 });
-                log.info(`🟢 Đã ném vào Database một bài vãng lai cho sân: ${courtNameRaw}`);
+                
+                try {
+                  const { MeiliSearch } = require('meilisearch');
+                  const ms = new MeiliSearch({
+                    host: process.env.MEILI_HOST || 'http://localhost:7700',
+                    apiKey: process.env.MEILI_MASTER_KEY || 'supersecretmeilisearchkey'
+                  });
+
+                  await ms.index('posts').addDocuments([{
+                    id: newPost.id,
+                    court_name: courtNameRaw,
+                    content: text,
+                    timestamp: Date.now()
+                  }]);
+                  log.info(`🟢 Đã ném vào Database và MeiliSearch một bài vãng lai cho sân: ${courtNameRaw}`);
+                } catch (msErr) {
+                  log.error("MeiliSearch Lỗi nhúng data:", msErr);
+                }
               }
           } catch (dbErr) {
               log.error("Database Lỗi:", dbErr);
