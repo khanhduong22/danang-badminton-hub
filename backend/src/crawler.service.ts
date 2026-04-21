@@ -84,17 +84,58 @@ export class CrawlerService {
         }
 
         // Trích xuất văn bản từ thẻ
-        const posts = await page.evaluate(() => {
-          const items = Array.from(document.querySelectorAll('div, p, span'));
-          const strings = items.map(item => (item as HTMLElement).innerText || "").filter(t => t.length > 20);
-          return Array.from(new Set(strings));
-        });
+        const rawPosts = await page.evaluate((groupUrl) => {
+          const results: {content: string, url: string}[] = [];
+          
+          // Pattern mbasic thường dùng <article> hoặc <div role="article">
+          const articles = Array.from(document.querySelectorAll('article, div[role="article"], div[data-ft]'));
+          
+          if (articles.length > 0) {
+            articles.forEach(art => {
+              const content = (art as HTMLElement).innerText || "";
+              // Tìm link trỏ về bài viết (Thường chứa permalink hoặc story_fbid)
+              const linkNode = art.querySelector('a[href*="/permalink/"], a[href*="story_fbid="]') as HTMLAnchorElement;
+              const url = linkNode ? linkNode.href : groupUrl;
+              
+              if (content.length > 20) {
+                results.push({ content, url });
+              }
+            });
+          } else {
+            // Fallback: Tìm qua các thẻ a có chứa link bài viết
+            const links = Array.from(document.querySelectorAll('a[href*="/permalink/"], a[href*="story_fbid="]'));
+            links.forEach(a => {
+              let container = a.parentElement;
+              // Rút lên 5 cấp cha để lấy content
+              for (let i = 0; i < 5; i++) {
+                if (container && container.parentElement && !container.innerText.includes("Tham gia")) {
+                   container = container.parentElement;
+                }
+              }
+              if (container) {
+                const content = container.innerText || "";
+                if (content.length > 20) {
+                  results.push({ content, url: (a as HTMLAnchorElement).href });
+                }
+              }
+            });
+          }
+          
+          // Loại bỏ trùng lặp nội dung
+          return results.filter((value, index, self) =>
+              index === self.findIndex((t) => (
+                t.content === value.content
+              ))
+          );
+        }, FB_GROUP_URL);
 
-        const vangLaiPosts = posts.filter(t => t.toLowerCase().includes("vãng lai") || t.toLowerCase().includes("tuyển"));
+        const vangLaiPosts = rawPosts.filter(p => p.content.toLowerCase().includes("vãng lai") || p.content.toLowerCase().includes("tuyển"));
 
         log.info(`✅ Bóc tách được ${vangLaiPosts.length} bài đăng tiềm năng`);
 
-        for (const text of vangLaiPosts) {
+        for (const post of vangLaiPosts) {
+          const text = post.content;
+          const postUrl = post.url;
           const courtNameMatch = text.match(/sân\s+([a-zA-Z0-9\s]+)/i);
           const courtNameRaw = courtNameMatch ? courtNameMatch[1].trim().slice(0, 50) : "Chưa xác định";
           
@@ -113,7 +154,7 @@ export class CrawlerService {
                     end_time: new Date(Date.now() + 7200000), 
                     slot_needed: text.match(/\d+/) ? parseInt(text.match(/\d+/)![0], 10) : 1,
                     price_per_slot: "Liên hệ trực tiếp",
-                    source_url: FB_GROUP_URL
+                    source_url: postUrl
                   }
                 });
                 
@@ -129,7 +170,7 @@ export class CrawlerService {
                     content: text,
                     timestamp: Date.now()
                   }]);
-                  log.info(`🟢 Đã ném vào Database và MeiliSearch một bài vãng lai cho sân: ${courtNameRaw}`);
+                  log.info(`🟢 Đã ném vào Database và MeiliSearch: ${courtNameRaw} | URL: ${postUrl}`);
                 } catch (msErr) {
                   log.error("MeiliSearch Lỗi nhúng data:", msErr);
                 }
