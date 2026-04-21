@@ -1,54 +1,102 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Post, Query, HttpCode } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { CrawlerService } from './crawler.service';
+import { AiClassifierService } from './ai-classifier.service';
 import { Meilisearch } from 'meilisearch';
 
 @Controller('api')
 export class AppController {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly meili: Meilisearch;
 
-  @Get('wandering-posts')
-  async getWanderingPosts() {
-    return this.prisma.wanderingPost.findMany({
-      orderBy: { created_at: 'desc' },
-      include: {
-        court: true
-      }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly crawler: CrawlerService,
+    private readonly classifier: AiClassifierService,
+  ) {
+    this.meili = new Meilisearch({
+      host: process.env.MEILI_HOST || 'http://localhost:7700',
+      apiKey: process.env.MEILI_MASTER_KEY || 'supersecretmeilisearchkey',
     });
   }
 
+  /** Full-text + faceted search via Meilisearch */
+  @Get('search')
+  async searchPosts(
+    @Query('q') q: string = '',
+    @Query('level') level?: string,
+    @Query('type') type?: string,
+    @Query('active') active?: string,
+  ) {
+    const filter: string[] = [];
+    if (level) filter.push(`level_required = "${level}"`);
+    if (type) filter.push(`post_type = "${type}"`);
+    if (active !== 'false') filter.push('is_active = true');
+
+    try {
+      const response = await this.meili.index('posts').search(q, {
+        limit: 30,
+        filter: filter.length ? filter.join(' AND ') : undefined,
+        sort: ['start_time:asc'],
+      });
+
+      if (response.hits.length === 0) return [];
+
+      const ids = response.hits.map((h: any) => h.id as number);
+      const posts = await this.prisma.wanderingPost.findMany({
+        where: { id: { in: ids } },
+        include: { raw_content: true, court: true },
+      });
+
+      return posts.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    } catch {
+      return [];
+    }
+  }
+
+  /** List wandering posts — active only by default */
+  @Get('wandering-posts')
+  async getWanderingPosts(
+    @Query('active') active?: string,
+    @Query('type') type?: string,
+    @Query('level') level?: string,
+  ) {
+    return this.prisma.wanderingPost.findMany({
+      where: {
+        is_active: active === 'false' ? undefined : true,
+        ...(type ? { post_type: type } : {}),
+        ...(level ? { level_required: level } : {}),
+      },
+      orderBy: { start_time: 'asc' },
+      include: { court: true },
+    });
+  }
+
+  /** List courts */
   @Get('courts')
   async getCourts() {
     return this.prisma.court.findMany();
   }
 
-  @Get('search')
-  async searchPosts(@Query('q') q: string) {
-    if (!q) return [];
-    
-    try {
-      const ms = new Meilisearch({
-        host: process.env.MEILI_HOST || 'http://localhost:7700',
-        apiKey: process.env.MEILI_MASTER_KEY || 'supersecretmeilisearchkey'
-      });
+  /** Manual trigger: run crawler immediately (admin use) */
+  @Post('crawler/trigger')
+  @HttpCode(202)
+  async triggerCrawler() {
+    // Fire and forget
+    this.crawler.runCrawlee().catch(() => undefined);
+    return { message: 'Crawler triggered' };
+  }
 
-      const response = await ms.index('posts').search(q, {
-        limit: 20
-      });
+  /** Manual trigger: run AI classifier immediately (admin use) */
+  @Post('classifier/trigger')
+  @HttpCode(202)
+  async triggerClassifier() {
+    this.classifier.processUnclassified().catch(() => undefined);
+    return { message: 'AI Classifier triggered' };
+  }
 
-      if (response.hits.length === 0) return [];
-
-      const ids = response.hits.map((hit: any) => hit.id);
-      
-      const posts = await this.prisma.wanderingPost.findMany({
-        where: { id: { in: ids } },
-        include: { court: true }
-      });
-
-      // Sắp xếp lại theo thứ tự điểm Meilisearch trả về
-      return posts.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-    } catch (error) {
-      return [];
-    }
+  /** Health check */
+  @Get('health')
+  health() {
+    return { status: 'ok', ts: new Date().toISOString() };
   }
 }
-

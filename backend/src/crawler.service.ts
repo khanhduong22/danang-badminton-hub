@@ -1,10 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { PuppeteerCrawler, ProxyConfiguration } from 'crawlee';
+import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import { PrismaService } from './prisma.service';
-import { Meilisearch } from 'meilisearch';
+import * as fs from 'fs';
+import * as path from 'path';
 
-const FB_GROUP_URL = process.env.FB_GROUP_URL || "https://mbasic.facebook.com/groups/594956003862912";
+// ---------------------------------------------------------------------------
+// Config — add group IDs here or via env FB_GROUP_IDS=id1,id2
+// ---------------------------------------------------------------------------
+const FB_GROUP_IDS: string[] = (
+  process.env.FB_GROUP_IDS || '594956003862912'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const MAX_POSTS_PER_RUN = 10; // rate-limit: max new post details per cron tick
+const POST_DELAY_MS = 1500;   // pause between post detail requests
+const SESSION_FILE = path.join(process.cwd(), 'storage', 'fb_session.json');
 
 @Injectable()
 export class CrawlerService {
@@ -12,6 +25,9 @@ export class CrawlerService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  // -------------------------------------------------------------------------
+  // Cron schedules
+  // -------------------------------------------------------------------------
   @Cron('*/1 16-19 * * *', { timeZone: 'Asia/Ho_Chi_Minh' })
   async handlePeakHourCron() {
     this.logger.debug('Kích hoạt Crawlee giờ CAO ĐIỂM (1 phút/lần)');
@@ -24,228 +40,429 @@ export class CrawlerService {
     await this.runCrawlee();
   }
 
-  async runCrawlee() {
-    this.logger.log("🕷️ Bắt đầu Crawlee cào nhóm Facebook...");
+  /** Hourly: auto-deactivate posts whose end_time has passed */
+  @Cron('0 * * * *', { timeZone: 'Asia/Ho_Chi_Minh' })
+  async handleAutoDeactivate() {
+    const result = await this.prisma.wanderingPost.updateMany({
+      where: {
+        is_active: true,
+        end_time: { lte: new Date() },
+      },
+      data: { is_active: false },
+    });
+    if (result.count > 0) {
+      this.logger.log(`⏰ Auto-deactivated ${result.count} expired posts`);
+    }
+  }
 
-    // Thiết lập Proxy nếu có trong .env
-    let proxyConfiguration: ProxyConfiguration | undefined;
-    if (process.env.PROXY_URL) {
-      this.logger.log("Gắn chạy qua Proxy Webshare: " + process.env.PROXY_URL);
-      proxyConfiguration = new ProxyConfiguration({
-        proxyUrls: [process.env.PROXY_URL],
+  // -------------------------------------------------------------------------
+  // Main entry point
+  // -------------------------------------------------------------------------
+  async runCrawlee() {
+    this.logger.log('🕷️ Bắt đầu cào Facebook Groups...');
+
+    let browser: Browser | null = null;
+    try {
+      browser = await chromium.launch({
+        headless: true,
+        executablePath: process.env.CHROME_BIN || undefined,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-blink-features=AutomationControlled',
+        ],
       });
+
+      const context = await browser.newContext({
+        userAgent:
+          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        locale: 'vi-VN',
+      });
+
+      const page = await context.newPage();
+
+      // --- Session bootstrap ---
+      // Priority 1: saved session file (from previous auto-login)
+      // Priority 2: auto-login with FB_EMAIL + FB_PASSWORD credentials
+      // Priority 3: FB_COOKIE env var (manual fallback)
+      const loggedIn = await this.ensureSession(context, page);
+      if (!loggedIn) {
+        this.logger.error(
+          '💥 Không thể đăng nhập Facebook. Kiểm tra FB_EMAIL/FB_PASSWORD hoặc FB_COOKIE.',
+        );
+        return;
+      }
+
+      // Phase 1: Collect post URLs across all configured groups
+      const allPostUrls: { groupId: string; postId: string; postUrl: string }[] = [];
+      for (const groupId of FB_GROUP_IDS) {
+        const urls = await this.phase1_collectPostUrls(page, groupId);
+        allPostUrls.push(...urls);
+      }
+      this.logger.log(`📋 Phase 1 done: Tìm thấy ${allPostUrls.length} post URLs`);
+
+      // Filter: only posts not yet in DB
+      const existingIds = await this.getExistingFbPostIds(
+        allPostUrls.map((p) => p.postId),
+      );
+      const newPosts = allPostUrls.filter((p) => !existingIds.has(p.postId));
+      this.logger.log(`🆕 ${newPosts.length} bài mới chưa cào`);
+
+      // Phase 2: Scrape each new post (rate-limited)
+      const toProcess = newPosts.slice(0, MAX_POSTS_PER_RUN);
+      for (const post of toProcess) {
+        await this.phase2_scrapePostDetail(page, post);
+        await this.sleep(POST_DELAY_MS);
+      }
+
+      // Persist session cookies so next run skips login
+      await this.saveSession(context);
+
+      this.logger.log(`✅ Cào xong: ${toProcess.length} bài mới nhét vào DB`);
+    } catch (err) {
+      this.logger.error('Crawler lỗi:', err);
+    } finally {
+      await browser?.close();
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Session management
+  // -------------------------------------------------------------------------
+
+  /**
+   * Ensures a valid FB session in `context`.
+   * 1. Try loading saved session from disk
+   * 2. If still not logged in → auto-login with FB_EMAIL / FB_PASSWORD on mbasic
+   * 3. Fallback to FB_COOKIE env var
+   * Returns true if session is valid.
+   */
+  private async ensureSession(context: BrowserContext, page: Page): Promise<boolean> {
+    // 1. Load saved session
+    if (fs.existsSync(SESSION_FILE)) {
+      try {
+        const saved = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
+        await context.addCookies(saved);
+        this.logger.log('📂 Loaded saved session from disk');
+      } catch {
+        this.logger.warn('Could not load session file, will re-login');
+      }
     }
 
-    const crawler = new PuppeteerCrawler({
-      proxyConfiguration,
-      // Tính năng chạy ngầm (true) hoặc hiện UI nếu test local
-      headless: process.env.NODE_ENV === 'production' || process.env.NODE_ENV === undefined,
-      maxRequestRetries: 2,
-      launchContext: {
-        launchOptions: {
-          executablePath: process.env.CHROME_BIN || undefined,
-          args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-blink-features=AutomationControlled"],
+    // 2. Check if session is valid
+    if (await this.checkSession(page, FB_GROUP_IDS[0])) {
+      this.logger.log('✅ Session valid');
+      return true;
+    }
+
+    // 3. Try auto-login with credentials
+    const email = process.env.FB_EMAIL;
+    const password = process.env.FB_PASSWORD;
+    if (email && password) {
+      this.logger.log('🔑 Đang tự đăng nhập bằng FB_EMAIL/FB_PASSWORD...');
+      const loginOk = await this.autoLogin(page, email, password);
+      if (loginOk) {
+        await this.saveSession(context);
+        return true;
+      }
+      this.logger.error('❌ Auto-login thất bại');
+    }
+
+    // 4. Fallback: inject FB_COOKIE from env
+    const rawCookie = process.env.FB_COOKIE;
+    if (rawCookie) {
+      this.logger.warn('⚠️ Dùng FB_COOKIE env (manual fallback)...');
+      await this.injectCookies(context, rawCookie);
+      return await this.checkSession(page, FB_GROUP_IDS[0]);
+    }
+
+    return false;
+  }
+
+  /**
+   * Auto-login via mbasic login form (simpler, less bot-detection than desktop).
+   */
+  private async autoLogin(page: Page, email: string, password: string): Promise<boolean> {
+    try {
+      await page.goto('https://mbasic.facebook.com/login/', {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000,
+      });
+
+      // mbasic login form: input[name="email"] and input[name="pass"]
+      await page.fill('input[name="email"]', email);
+      await this.sleep(500);
+      await page.fill('input[name="pass"]', password);
+      await this.sleep(500);
+
+      // Submit — mbasic has <input type="submit" name="login">
+      // Don't use waitForNavigation with click as mbasic form submit can be tricky
+      await page.click('input[type="submit"][name="login"], input[name="login"], button[name="login"]');
+      
+      // Wait for URL to change away from /login/
+      try {
+        await page.waitForURL((url) => !url.toString().includes('/login/'), { timeout: 20000 });
+      } catch {
+        // Might already be on new page — check current URL
+      }
+
+      const finalUrl = page.url();
+      this.logger.log(`Login redirect → ${finalUrl}`);
+
+      // Check if we hit a checkpoint / 2FA page
+      if (finalUrl.includes('/checkpoint') || finalUrl.includes('/two_step')) {
+        this.logger.error('⚠️ Facebook yêu cầu xác minh 2FA hoặc checkpoint. Dùng account khác không có 2FA.');
+        return false;
+      }
+
+      // Verify session
+      return !(finalUrl.includes('/login'));
+    } catch (err) {
+      this.logger.error('autoLogin error:', err);
+      return false;
+    }
+  }
+
+  /** Save current session cookies to disk for reuse */
+  private async saveSession(context: BrowserContext): Promise<void> {
+    try {
+      const cookies = await context.cookies();
+      // Only keep facebook cookies
+      const fbCookies = cookies.filter((c) => c.domain.includes('facebook.com'));
+      fs.mkdirSync(path.dirname(SESSION_FILE), { recursive: true });
+      fs.writeFileSync(SESSION_FILE, JSON.stringify(fbCookies, null, 2));
+      this.logger.log(`💾 Session saved (${fbCookies.length} cookies)`);
+    } catch (err) {
+      this.logger.warn('Could not save session:', err);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Phase 1: Collect post URLs from group feed (mbasic)
+  // -------------------------------------------------------------------------
+  private async phase1_collectPostUrls(
+    page: Page,
+    groupId: string,
+  ): Promise<{ groupId: string; postId: string; postUrl: string }[]> {
+    const feedUrl = `https://www.facebook.com/groups/${groupId}`;
+    this.logger.log(`📄 Phase 1: cào feed group ${groupId}`);
+
+    try {
+      await page.goto(feedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    } catch {
+      this.logger.warn(`Timeout loading feed for group ${groupId}`);
+      return [];
+    }
+
+    // Scroll to trigger lazy loading of posts
+    for (let i = 0; i < 4; i++) {
+      await page.evaluate(() => window.scrollBy(0, window.innerHeight * 2));
+      await this.sleep(1200);
+    }
+
+    // Extract post links — match both numeric IDs and vanity group names (e.g. danangbadminton)
+    const postLinks = await page.evaluate((): { postId: string; postUrl: string }[] => {
+      const results: { postId: string; postUrl: string }[] = [];
+      const seen = new Set<string>();
+
+      document.querySelectorAll('a[href]').forEach((a) => {
+        const href = (a as HTMLAnchorElement).href || '';
+        const match =
+          href.match(/\/groups\/[\w-]+\/permalink\/(\d+)/) ||
+          href.match(/\/groups\/[\w-]+\/posts\/(\d+)/);
+        if (match && !seen.has(match[1])) {
+          seen.add(match[1]);
+          results.push({ postId: match[1], postUrl: href.split('?')[0] });
         }
-      },
-      // Middleware trước khi request bơi đi
-      preNavigationHooks: [
-        async (crawlingContext) => {
-          const { page } = crawlingContext;
-          // Set Fingerprint tĩnh nhẹ
-          await page.setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36");
-          
-          // Nạp Session Cookie nếu có  (Định dạng: c_user=123; xs=456)
-          if (process.env.FB_COOKIE) {
-            const rawCookies = process.env.FB_COOKIE.split(';').map(c => c.trim()).filter(Boolean);
-            const cookies = rawCookies.map(c => {
-              const [name, ...rest] = c.split('=');
-              return { name, value: rest.join('='), domain: '.facebook.com' };
-            });
-            await page.setCookie(...cookies);
-          }
-        }
-      ],
-      // Xử lý chính mạch Request
-      requestHandler: async ({ page, request, log }) => {
-        log.info(`Đang truy cập ${request.url}...`);
-        
-        // Mbasic đôi khi dính Checkpoint chuyển qua URL /login
-        const currentUrl = page.url();
-        if (currentUrl.includes('/login') || currentUrl.includes('/checkpoint')) {
-          log.error("💥 Session/Cookie bị văng hoặc chặn! Yêu cầu thay Cookie mới.");
-          return;
-        }
-
-        // AutoScroll 3 lần
-        const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-        for (let i = 0; i < 3; i++) {
-          await page.evaluate(() => window.scrollBy(0, window.innerHeight * 2));
-          await sleep(1500);
-        }
-
-        // Trích xuất văn bản từ thẻ
-        const rawPosts = await page.evaluate((groupUrl) => {
-          const results: {content: string, url: string}[] = [];
-          
-          // Pattern mbasic thường dùng <article> hoặc <div role="article">
-          const articles = Array.from(document.querySelectorAll('article, div[role="article"], div[data-ft]'));
-          
-          if (articles.length > 0) {
-            articles.forEach(art => {
-              const content = (art as HTMLElement).innerText || "";
-              // Tìm link trỏ về bài viết (Thường chứa permalink hoặc story_fbid)
-              const linkNode = art.querySelector('a[href*="/permalink/"], a[href*="story_fbid="]') as HTMLAnchorElement;
-              const url = linkNode ? linkNode.href : groupUrl;
-              
-              if (content.length > 20) {
-                results.push({ content, url });
-              }
-            });
-          } else {
-            // Fallback: Tìm qua các thẻ a có chứa link bài viết
-            const links = Array.from(document.querySelectorAll('a[href*="/permalink/"], a[href*="story_fbid="]'));
-            links.forEach(a => {
-              let container = a.parentElement;
-              // Rút lên 5 cấp cha để lấy content
-              for (let i = 0; i < 5; i++) {
-                if (container && container.parentElement && !container.innerText.includes("Tham gia")) {
-                   container = container.parentElement;
-                }
-              }
-              if (container) {
-                const content = container.innerText || "";
-                if (content.length > 20) {
-                  results.push({ content, url: (a as HTMLAnchorElement).href });
-                }
-              }
-            });
-          }
-          
-          // Loại bỏ trùng lặp nội dung
-          return results.filter((value, index, self) =>
-              index === self.findIndex((t) => (
-                t.content === value.content
-              ))
-          );
-        }, FB_GROUP_URL);
-
-        const vangLaiPosts = rawPosts.slice(0, 15);
-
-        log.info(`✅ Bóc tách được ${vangLaiPosts.length} bài đăng tiềm năng`);
-        
-        let ai: any = null;
-        try {
-          const { GoogleGenAI } = require('@google/genai');
-          ai = new GoogleGenAI({});
-        } catch (e) {
-          log.warning("Thiếu @google/genai hoặc lỗi khởi tạo Gemini.");
-        }
-
-        for (const post of vangLaiPosts) {
-          const text = post.content;
-          const postUrl = post.url;
-          
-          let parsedData = {
-            court_name_raw: "Post từ Group",
-            start_time: new Date(),
-            end_time: new Date(Date.now() + 7200000),
-            slot_needed: 1,
-            price_per_slot: "Liên hệ trực tiếp",
-            level_required: "Chưa rõ"
-          };
-
-          try {
-              // UpSert dựa theo độ dài nội dung để không lưu trùng bài cũ
-              const existing = await this.prisma.wanderingPost.findFirst({
-                where: { content_raw: text }
-              });
-
-              if (!existing) {
-                
-                if (false /* Bypass AI parser for now */) {
-                  const now = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-                  const prompt = `Trích xuất thông tin kèo cầu lông từ bài viết sau. Hiện tại là: ${now} (Giờ VN).\nBài viết: "${text}"`;
-                  try {
-                    const response = await ai.models.generateContent({
-                      model: 'gemma-4-31b-it',
-                      contents: prompt,
-                      config: {
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            type: "OBJECT",
-                            properties: {
-                                court_name: { type: "STRING", description: "Tên sân cầu lông" },
-                                start_time: { type: "STRING", description: "Thời gian bắt đầu chuẩn ISO 8601 (VD: 2026-04-21T18:00:00+07:00). Dùng năm hiện tại nếu không nói rõ." },
-                                end_time: { type: "STRING", description: "Thời gian kết thúc chuẩn ISO 8601" },
-                                slot_needed: { type: "INTEGER", description: "Số suất vãng lai cần tuyển" },
-                                price_per_slot: { type: "STRING", description: "Tiền sân/giá" },
-                                level_required: { type: "STRING", description: "Yêu cầu trình độ (tb, khá, v.v)" }
-                            },
-                        }
-                      }
-                    });
-                    const resultText = response.text || "";
-                    const cleaned = resultText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-                    const aiData = JSON.parse(cleaned);
-                    if (aiData.court_name) parsedData.court_name_raw = aiData.court_name;
-                    if (aiData.start_time) parsedData.start_time = new Date(aiData.start_time);
-                    if (aiData.end_time) parsedData.end_time = new Date(aiData.end_time);
-                    if (aiData.slot_needed) parsedData.slot_needed = aiData.slot_needed;
-                    if (aiData.price_per_slot) parsedData.price_per_slot = aiData.price_per_slot;
-                    if (aiData.level_required) parsedData.level_required = aiData.level_required;
-                  } catch (aiErr) {
-                    log.error("Lỗi AI Parse:", aiErr);
-                  }
-                } else {
-                  // Fallback Regex
-                  const courtNameMatch = text.match(/sân\s+([a-zA-Z0-9\s]+)/i);
-                  parsedData.court_name_raw = courtNameMatch ? courtNameMatch[1].trim().slice(0, 50) : "Chưa xác định";
-                  parsedData.slot_needed = text.match(/\d+/) ? parseInt(text.match(/\d+/)![0], 10) : 1;
-                }
-
-                const newPost = await this.prisma.wanderingPost.create({
-                  data: {
-                    court_name_raw: parsedData.court_name_raw,
-                    content_raw: text,
-                    start_time: parsedData.start_time, 
-                    end_time: parsedData.end_time, 
-                    slot_needed: parsedData.slot_needed,
-                    price_per_slot: String(parsedData.price_per_slot),
-                    level_required: String(parsedData.level_required),
-                    source_url: postUrl
-                  }
-                });
-                
-                try {
-                  const ms = new Meilisearch({
-                    host: process.env.MEILI_HOST || 'http://localhost:7700',
-                    apiKey: process.env.MEILI_MASTER_KEY || 'supersecretmeilisearchkey'
-                  });
-
-                  await ms.index('posts').addDocuments([{
-                    id: newPost.id,
-                    court_name: parsedData.court_name_raw,
-                    content: text,
-                    timestamp: Date.now()
-                  }]);
-                  log.info(`🟢 Đã ném vào Database và MeiliSearch: ${parsedData.court_name_raw} | URL: ${postUrl}`);
-                } catch (msErr) {
-                  log.error("MeiliSearch Lỗi nhúng data:", msErr);
-                }
-              }
-          } catch (dbErr) {
-              log.error("Database Lỗi:", dbErr);
-          }
-        }
-      },
-      failedRequestHandler: ({ request, log }) => {
-        log.error(`Request ${request.url} failed qua nhieu lan thử: \n${request.errorMessages}`);
-      },
+      });
+      return results;
     });
 
-    // Chạy Engine với uniqueKey ngẫu nhiên để ép Crawlee không bỏ qua Request cũ
-    await crawler.run([
-      { url: FB_GROUP_URL, uniqueKey: Date.now().toString() }
-    ]);
+    return postLinks.map((p) => ({ groupId, ...p }));
+  }
+
+  // -------------------------------------------------------------------------
+  // Phase 2: Scrape full post detail + comments (mbasic)
+  // -------------------------------------------------------------------------
+  private async phase2_scrapePostDetail(
+    page: Page,
+    post: { groupId: string; postId: string; postUrl: string },
+  ): Promise<void> {
+    // Use the desktop post URL (same domain/session as Phase 1)
+    const postUrl = post.postUrl || `https://www.facebook.com/groups/${post.groupId}/posts/${post.postId}/`;
+    this.logger.log(`🔍 Phase 2: scraping post ${post.postId}`);
+
+    try {
+      await page.goto(postUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    } catch {
+      this.logger.warn(`Timeout loading post ${post.postId}`);
+      return;
+    }
+
+    // Click "See More" / "Xem thêm" to expand truncated post text
+    try {
+      const seeMoreBtn = page.locator('div[data-ad-preview="message"] [role="button"]:has-text("Xem thêm"), div[data-ad-preview="message"] [role="button"]:has-text("See more")');
+      if (await seeMoreBtn.count() > 0) {
+        await seeMoreBtn.first().click();
+        await this.sleep(500);
+      }
+    } catch {
+      // No "See More" button — post text already fully visible
+    }
+
+    const scraped = await page.evaluate(() => {
+      const result: {
+        postText: string;
+        authorName: string | null;
+        authorUrl: string | null;
+        fbPostedAt: string | null;
+        comments: { author: string; authorUrl: string | null; text: string }[];
+      } = {
+        postText: '',
+        authorName: null,
+        authorUrl: null,
+        fbPostedAt: null,
+        comments: [],
+      };
+
+      // Desktop FB: post body in div[data-ad-preview="message"] or aria-label article
+      const postBody = document.querySelector('[data-ad-preview="message"], div[data-testid="post_message"]');
+      if (postBody) {
+        result.postText = (postBody as HTMLElement).innerText?.trim() || '';
+      }
+
+      // Fallback: grab all dir=auto divs with substantial text
+      if (!result.postText) {
+        const candidates = Array.from(document.querySelectorAll('div[dir="auto"]'));
+        const texts = candidates
+          .map((el) => (el as HTMLElement).innerText?.trim() || '')
+          .filter((t) => t.length > 30 && !t.includes('Facebook') && t.length < 3000);
+        result.postText = texts[0] || '';
+      }
+
+      // Author: h2 inside the first article
+      const article = document.querySelector('div[role="article"]');
+      if (article) {
+        const authorLink = article.querySelector('h2 a, strong a') as HTMLAnchorElement | null;
+        if (authorLink) {
+          result.authorName = authorLink.innerText.trim();
+          result.authorUrl = authorLink.href;
+        }
+      }
+
+      // Timestamp: abbr or time element
+      const timeEl = document.querySelector('abbr[data-utime], time[datetime]') as HTMLElement | null;
+      if (timeEl) {
+        result.fbPostedAt = timeEl.getAttribute('data-utime') || timeEl.getAttribute('datetime') || null;
+      }
+
+      // Comments: div[aria-label] blocks inside comment threads
+      document.querySelectorAll('div[aria-label][role="article"]').forEach((commentEl) => {
+        const authorEl = commentEl.querySelector('a[role="link"]') as HTMLAnchorElement | null;
+        const bodyEl = commentEl.querySelector('div[dir="auto"]') as HTMLElement | null;
+        const text = bodyEl?.innerText?.trim() || '';
+        if (text.length > 0 && text !== result.postText) {
+          result.comments.push({
+            author: authorEl?.innerText.trim() || 'Unknown',
+            authorUrl: authorEl?.href || null,
+            text,
+          });
+        }
+      });
+
+      return result;
+    });
+
+    if (!scraped.postText) {
+      this.logger.warn(`Post ${post.postId} scraped empty text, skipping`);
+      return;
+    }
+
+    this.logger.log(`📝 Post ${post.postId}: "${scraped.postText.substring(0, 60)}..." (${scraped.comments.length} comments)`);
+
+    try {
+      await this.prisma.fbRawContent.create({
+        data: {
+          fb_post_id: post.postId,
+          group_id: post.groupId,
+          author_name: scraped.authorName,
+          author_url: scraped.authorUrl,
+          post_text: scraped.postText,
+          comments: scraped.comments as any,
+          post_url: post.postUrl,
+          fb_posted_at: scraped.fbPostedAt ? this.parseRelativeTime(scraped.fbPostedAt) : null,
+          processed: false,
+        },
+      });
+      this.logger.log(`💾 Saved raw: post ${post.postId}`);
+    } catch (err) {
+      this.logger.error(`DB error saving raw post ${post.postId}:`, err);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Helpers
+  // -------------------------------------------------------------------------
+  private async checkSession(page: Page, groupId: string): Promise<boolean> {
+    try {
+      await page.goto(`https://www.facebook.com/groups/${groupId}`, {
+        waitUntil: 'domcontentloaded',
+        timeout: 20000,
+      });
+      const url = page.url();
+      return !url.includes('/login') && !url.includes('/checkpoint');
+    } catch {
+      return false;
+    }
+  }
+
+  private async injectCookies(context: BrowserContext, rawCookie: string): Promise<void> {
+    if (!rawCookie) return;
+    const cookies = rawCookie
+      .split(';')
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .map((c) => {
+        const [name, ...rest] = c.split('=');
+        return {
+          name: name.trim(),
+          value: rest.join('=').trim(),
+          domain: '.facebook.com',
+          path: '/',
+          httpOnly: true,
+          secure: true,
+          sameSite: 'None' as const,
+        };
+      });
+    await context.addCookies(cookies);
+  }
+
+  private async getExistingFbPostIds(postIds: string[]): Promise<Set<string>> {
+    if (postIds.length === 0) return new Set();
+    const existing = await this.prisma.fbRawContent.findMany({
+      where: { fb_post_id: { in: postIds } },
+      select: { fb_post_id: true },
+    });
+    return new Set(existing.map((r) => r.fb_post_id));
+  }
+
+  private parseRelativeTime(raw: string): Date | null {
+    try {
+      const data = JSON.parse(raw);
+      if (data.time) return new Date(data.time * 1000);
+    } catch {
+      // not JSON
+    }
+    const now = new Date();
+    const hourMatch = raw.match(/(\d+)\s*giờ/i);
+    const minMatch = raw.match(/(\d+)\s*phút/i);
+    if (hourMatch) now.setHours(now.getHours() - parseInt(hourMatch[1]));
+    if (minMatch) now.setMinutes(now.getMinutes() - parseInt(minMatch[1]));
+    return now;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

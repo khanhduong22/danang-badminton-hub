@@ -2,3 +2,5 @@ node_modules
 dist
 .env
 
+storage/fb_session.json
+storage/

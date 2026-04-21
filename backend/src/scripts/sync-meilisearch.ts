@@ -18,7 +18,7 @@ async function main() {
 
   const documents = posts.map(post => ({
     id: post.id,
-    court_name: post.court_name_raw,
+    court_name: post.court_name,
     content: post.content_raw,
     timestamp: post.created_at ? new Date(post.created_at).getTime() : Date.now()
   }));

@@ -25,17 +25,53 @@ model Court {
   posts           WanderingPost[]
 }
 
+/// Raw content scraped from Facebook group posts + comments.
+/// Preserved as-is for reprocessing by AI at any time.
+model FbRawContent {
+  id              Int       @id @default(autoincrement())
+  fb_post_id      String    @unique             // Facebook post ID (from URL)
+  group_id        String                        // Facebook group ID
+  author_name     String?                       // Post author display name
+  author_url      String?                       // Link to Facebook profile of author
+  post_text       String                        // Full expanded post text
+  comments        Json?                         // [{ author, author_url, text, timestamp }]
+  post_url        String                        // Original Facebook URL
+  fb_posted_at    DateTime?                     // When posted on FB (parsed from relative time)
+  scraped_at      DateTime  @default(now())
+  processed       Boolean   @default(false)     // Has AI processed this?
+
+  parsedPost      WanderingPost?
+}
+
+/// AI-parsed structured data from a Facebook post.
+/// Each record links back to its raw source for traceability.
 model WanderingPost {
-  id              Int      @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
+
+  // Link to raw source
+  raw_content_id  Int?      @unique
+  raw_content     FbRawContent? @relation(fields: [raw_content_id], references: [id])
+
+  // AI-extracted structured fields
+  post_type       String    @default("vang_lai")  // "vang_lai" | "tuyen_co_dinh" | "cho_thue_san" | "khac"
+  court_name      String?
   court_id        Int?
-  court           Court?   @relation(fields: [court_id], references: [id], onDelete: SetNull)
-  court_name_raw  String?
-  start_time      DateTime
-  end_time        DateTime
-  level_required  String?
-  slot_needed     Int      @default(1)
-  price_per_slot  String?
+  court           Court?    @relation(fields: [court_id], references: [id], onDelete: SetNull)
+  address_raw     String?                         // Raw address string from AI
+  start_time      DateTime?
+  end_time        DateTime?
+  level_required  String?                         // "yeu" | "tb-" | "tb" | "tb+" | "kha" | "gioi"
+  slots_available Int       @default(1)
+  price_per_slot  String?                         // "50k" | "60k/người"
+  contact_info    String?                         // Zalo/SĐT if found
+  post_url        String?                         // Direct link to the FB post
+  author_url      String?                         // Link to FB profile of author
+  is_active       Boolean   @default(true)        // Auto-deactivate when past end_time
+
+  // Metadata
+  ai_confidence   Float?                          // 0-1 confidence score
   source_url      String?
-  content_raw     String?
-  created_at      DateTime @default(now())
+  content_raw     String?                         // Legacy: kept for backward compat
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
 }
