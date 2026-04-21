@@ -1,10 +1,19 @@
 import { Clock, MapPin, Users, Ticket } from "lucide-react";
+import SearchBar from "./search-bar";
 
-async function getWanderingPosts() {
+async function getWanderingPosts(q?: string) {
   try {
-    const res = await fetch(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/wandering-posts', { 
-      next: { revalidate: 60 } // Revalidate every 60s
+    const endpoint = q 
+      ? `/api/search?q=${encodeURIComponent(q)}` 
+      : `/api/wandering-posts`;
+      
+    // Call external server if NEXT_PUBLIC_API_URL is configured (in Vercel)
+    // Otherwise fallback to localhost
+    const url = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + endpoint;
+    const res = await fetch(url, { 
+      next: { revalidate: q ? 0 : 60 } // No cache for search, cache 60s for list
     });
+    
     if (!res.ok) return [];
     return await res.json();
   } catch (error) {
@@ -13,8 +22,15 @@ async function getWanderingPosts() {
   }
 }
 
-export default async function VangLaiPage() {
-  const posts = await getWanderingPosts();
+type Props = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+export default async function VangLaiPage(props: Props) {
+  const searchParams = await props.searchParams;
+  const q = searchParams?.q as string | undefined;
+  
+  const posts = await getWanderingPosts(q);
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-6xl">
@@ -22,9 +38,10 @@ export default async function VangLaiPage() {
         <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl mb-4">
           Tìm <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-600">Vãng Lai</span>
         </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
           Cập nhật liên tục các kèo đánh vãng lai tại Đà Nẵng từ Cộng Đồng. Tìm sân, tìm người chơi nhanh chóng.
         </p>
+        <SearchBar />
       </div>
 
       {posts.length === 0 ? (

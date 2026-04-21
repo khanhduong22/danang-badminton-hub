@@ -17,7 +17,7 @@ export function Navbar() {
         
         <nav className="flex items-center gap-6 text-sm font-medium flex-1">
           <Link
-            href="#radar"
+            href="/#radar"
             className="transition-colors hover:text-primary flex items-center gap-2"
           >
             <Map className="h-4 w-4" />
@@ -31,7 +31,7 @@ export function Navbar() {
             <span className="hidden sm:inline">Tìm Vãng Lai</span>
           </Link>
           <Link
-            href="#gear"
+            href="/#gear"
             className="transition-colors hover:text-primary flex items-center gap-2 text-muted-foreground"
           >
             <ShoppingBag className="h-4 w-4" />

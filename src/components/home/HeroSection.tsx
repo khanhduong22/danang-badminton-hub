@@ -24,11 +24,11 @@ export function HeroSection() {
         </p>
         
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link href="#radar" className="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-lg text-base font-medium transition-colors h-12 px-8 bg-primary text-primary-foreground shadow-lg shadow-emerald-500/20 hover:bg-primary/90 hover:-translate-y-0.5 duration-200">
+          <Link href="/#radar" className="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-lg text-base font-medium transition-colors h-12 px-8 bg-primary text-primary-foreground shadow-lg shadow-emerald-500/20 hover:bg-primary/90 hover:-translate-y-0.5 duration-200">
             <Search className="mr-2 h-5 w-5" />
             Tìm Sân Gần Đây
           </Link>
-          <Link href="#matchmaking" className="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-lg text-base font-medium transition-colors h-12 px-8 bg-white border border-emerald-200 text-emerald-700 shadow-sm hover:bg-emerald-50 hover:-translate-y-0.5 duration-200">
+          <Link href="/vang-lai" className="w-full sm:w-auto inline-flex items-center justify-center whitespace-nowrap rounded-lg text-base font-medium transition-colors h-12 px-8 bg-white border border-emerald-200 text-emerald-700 shadow-sm hover:bg-emerald-50 hover:-translate-y-0.5 duration-200">
             <Users className="mr-2 h-5 w-5" />
             Tuyển Vãng Lai
             <ArrowRight className="ml-2 h-4 w-4" />
