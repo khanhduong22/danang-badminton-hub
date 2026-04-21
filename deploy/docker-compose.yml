@@ -34,14 +34,22 @@ services:
       - MEILI_HOST=http://badminton_meilisearch:7700
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-supersecretmeilisearchkey}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - FB_EMAIL=${FB_EMAIL}
+      - FB_PASSWORD=${FB_PASSWORD}
+      - FB_COOKIE=${FB_COOKIE}
+      - FB_GROUP_IDS=${FB_GROUP_IDS:-594956003862912}
     ports:
       - "3001:3001"
     depends_on:
       - db
     restart: unless-stopped
+    volumes:
+      # Persist FB session cookies across container restarts
+      - backend-storage:/usr/src/app/storage
     command: >
-      sh -c "npx prisma db push && npm start"
+      sh -c "npx prisma db push && npm run start:prod"
 
 volumes:
   db-data:
   meili-data:
+  backend-storage:
