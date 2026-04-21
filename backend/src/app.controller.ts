@@ -1,5 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { Meilisearch } from 'meilisearch';
 
 @Controller('api')
 export class AppController {
@@ -25,7 +26,6 @@ export class AppController {
     if (!q) return [];
     
     try {
-      const { Meilisearch } = require('meilisearch');
       const ms = new Meilisearch({
         host: process.env.MEILI_HOST || 'http://localhost:7700',
         apiKey: process.env.MEILI_MASTER_KEY || 'supersecretmeilisearchkey'
