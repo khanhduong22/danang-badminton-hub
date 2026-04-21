@@ -27,8 +27,7 @@ async function main() {
   const response = await ms.index('posts').addDocuments(documents);
   console.log('Index task created: ', response.taskUid);
   
-  console.log('Waiting for indexing to complete...');
-  await ms.waitForTask(response.taskUid);
+  console.log('Index task created: ', response.taskUid);
   console.log('Done syncing DB to Meilisearch! ✅');
 }
 
