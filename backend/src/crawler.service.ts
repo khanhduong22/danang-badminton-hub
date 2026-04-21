@@ -3,7 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { PuppeteerCrawler, ProxyConfiguration } from 'crawlee';
 import { PrismaService } from './prisma.service';
 
-const FB_GROUP_URL = process.env.FB_GROUP_URL || "https://mbasic.facebook.com/groups/caulongdanang123";
+const FB_GROUP_URL = process.env.FB_GROUP_URL || "https://mbasic.facebook.com/groups/594956003862912";
 
 @Injectable()
 export class CrawlerService {
