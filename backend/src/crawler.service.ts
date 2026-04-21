@@ -167,7 +167,7 @@ export class CrawlerService {
                   const prompt = `Trích xuất thông tin kèo cầu lông từ bài viết sau. Hiện tại là: ${now} (Giờ VN).\nBài viết: "${text}"`;
                   try {
                     const response = await ai.models.generateContent({
-                      model: 'gemini-flash-latest',
+                      model: 'gemma-4-31b-it',
                       contents: prompt,
                       config: {
                         responseMimeType: "application/json",
