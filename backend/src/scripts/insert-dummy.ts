@@ -2,7 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "../app.module";
 import { CrawlerService } from "../crawler.service";
 import { GoogleGenAI } from "@google/genai";
-import { MeiliSearch } from "meilisearch";
+import { Meilisearch } from "meilisearch";
 
 async function run() {
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -43,7 +43,8 @@ async function run() {
             }
         });
         
-        const parsedData = JSON.parse(res.text || res.text());
+        const cleaned = (res.text || "").replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const parsedData = JSON.parse(cleaned || "{}");
         console.log("AI PARSED:", parsedData);
         
         // Postgres
@@ -60,8 +61,8 @@ async function run() {
         const newPost = await (crawler as any).prisma.wanderingPost.create({ data: pgData });
         
         // Meilisearch
-        const ms = new MeiliSearch({
-            host: process.env.MEILI_HOST || "http://localhost:7700",
+        const ms = new Meilisearch({
+            host: process.env.MEILI_HOST || "http://144.91.88.242:7700",
             apiKey: process.env.MEILI_MASTER_KEY || "supersecretmeilisearchkey"
         });
         await ms.index("posts").addDocuments([{

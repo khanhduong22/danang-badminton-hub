@@ -129,7 +129,7 @@ export class CrawlerService {
           );
         }, FB_GROUP_URL);
 
-        const vangLaiPosts = rawPosts.filter(p => p.content.toLowerCase().includes("vãng lai") || p.content.toLowerCase().includes("tuyển"));
+        const vangLaiPosts = rawPosts.slice(0, 15);
 
         log.info(`✅ Bóc tách được ${vangLaiPosts.length} bài đăng tiềm năng`);
         
@@ -146,7 +146,7 @@ export class CrawlerService {
           const postUrl = post.url;
           
           let parsedData = {
-            court_name_raw: "Chưa xác định",
+            court_name_raw: "Post từ Group",
             start_time: new Date(),
             end_time: new Date(Date.now() + 7200000),
             slot_needed: 1,
@@ -162,7 +162,7 @@ export class CrawlerService {
 
               if (!existing) {
                 
-                if (ai) {
+                if (false /* Bypass AI parser for now */) {
                   const now = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
                   const prompt = `Trích xuất thông tin kèo cầu lông từ bài viết sau. Hiện tại là: ${now} (Giờ VN).\nBài viết: "${text}"`;
                   try {
@@ -184,8 +184,9 @@ export class CrawlerService {
                         }
                       }
                     });
-                    const resultText = response.text || response.text();
-                    const aiData = JSON.parse(resultText);
+                    const resultText = response.text || "";
+                    const cleaned = resultText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                    const aiData = JSON.parse(cleaned);
                     if (aiData.court_name) parsedData.court_name_raw = aiData.court_name;
                     if (aiData.start_time) parsedData.start_time = new Date(aiData.start_time);
                     if (aiData.end_time) parsedData.end_time = new Date(aiData.end_time);
