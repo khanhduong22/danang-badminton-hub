@@ -30,9 +30,10 @@ services:
     build: ../backend
     container_name: badminton_backend
     environment:
-      DATABASE_URL: "postgresql://superadmin:supersecretpassword123@db:5432/badminton_hub?schema=public"
-      MEILI_HOST: "http://badminton_meilisearch:7700"
-      MEILI_MASTER_KEY: "supersecretmeilisearchkey"
+      - DATABASE_URL=postgresql://superadmin:supersecretpassword123@db:5432/badminton_hub?schema=public
+      - MEILI_HOST=http://badminton_meilisearch:7700
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-supersecretmeilisearchkey}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     ports:
       - "3001:3001"
     depends_on:

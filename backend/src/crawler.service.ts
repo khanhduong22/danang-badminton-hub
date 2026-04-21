@@ -132,13 +132,28 @@ export class CrawlerService {
         const vangLaiPosts = rawPosts.filter(p => p.content.toLowerCase().includes("vãng lai") || p.content.toLowerCase().includes("tuyển"));
 
         log.info(`✅ Bóc tách được ${vangLaiPosts.length} bài đăng tiềm năng`);
+        
+        let ai: any = null;
+        try {
+          const { GoogleGenAI } = require('@google/genai');
+          ai = new GoogleGenAI({});
+        } catch (e) {
+          log.warning("Thiếu @google/genai hoặc lỗi khởi tạo Gemini.");
+        }
 
         for (const post of vangLaiPosts) {
           const text = post.content;
           const postUrl = post.url;
-          const courtNameMatch = text.match(/sân\s+([a-zA-Z0-9\s]+)/i);
-          const courtNameRaw = courtNameMatch ? courtNameMatch[1].trim().slice(0, 50) : "Chưa xác định";
           
+          let parsedData = {
+            court_name_raw: "Chưa xác định",
+            start_time: new Date(),
+            end_time: new Date(Date.now() + 7200000),
+            slot_needed: 1,
+            price_per_slot: "Liên hệ trực tiếp",
+            level_required: "Chưa rõ"
+          };
+
           try {
               // UpSert dựa theo độ dài nội dung để không lưu trùng bài cũ
               const existing = await this.prisma.wanderingPost.findFirst({
@@ -146,14 +161,56 @@ export class CrawlerService {
               });
 
               if (!existing) {
+                
+                if (ai) {
+                  const now = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+                  const prompt = `Trích xuất thông tin kèo cầu lông từ bài viết sau. Hiện tại là: ${now} (Giờ VN).\nBài viết: "${text}"`;
+                  try {
+                    const response = await ai.models.generateContent({
+                      model: 'gemini-flash-latest',
+                      contents: prompt,
+                      config: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                court_name: { type: "STRING", description: "Tên sân cầu lông" },
+                                start_time: { type: "STRING", description: "Thời gian bắt đầu chuẩn ISO 8601 (VD: 2026-04-21T18:00:00+07:00). Dùng năm hiện tại nếu không nói rõ." },
+                                end_time: { type: "STRING", description: "Thời gian kết thúc chuẩn ISO 8601" },
+                                slot_needed: { type: "INTEGER", description: "Số suất vãng lai cần tuyển" },
+                                price_per_slot: { type: "STRING", description: "Tiền sân/giá" },
+                                level_required: { type: "STRING", description: "Yêu cầu trình độ (tb, khá, v.v)" }
+                            },
+                        }
+                      }
+                    });
+                    const resultText = response.text || response.text();
+                    const aiData = JSON.parse(resultText);
+                    if (aiData.court_name) parsedData.court_name_raw = aiData.court_name;
+                    if (aiData.start_time) parsedData.start_time = new Date(aiData.start_time);
+                    if (aiData.end_time) parsedData.end_time = new Date(aiData.end_time);
+                    if (aiData.slot_needed) parsedData.slot_needed = aiData.slot_needed;
+                    if (aiData.price_per_slot) parsedData.price_per_slot = aiData.price_per_slot;
+                    if (aiData.level_required) parsedData.level_required = aiData.level_required;
+                  } catch (aiErr) {
+                    log.error("Lỗi AI Parse:", aiErr);
+                  }
+                } else {
+                  // Fallback Regex
+                  const courtNameMatch = text.match(/sân\s+([a-zA-Z0-9\s]+)/i);
+                  parsedData.court_name_raw = courtNameMatch ? courtNameMatch[1].trim().slice(0, 50) : "Chưa xác định";
+                  parsedData.slot_needed = text.match(/\d+/) ? parseInt(text.match(/\d+/)![0], 10) : 1;
+                }
+
                 const newPost = await this.prisma.wanderingPost.create({
                   data: {
-                    court_name_raw: courtNameRaw,
+                    court_name_raw: parsedData.court_name_raw,
                     content_raw: text,
-                    start_time: new Date(), 
-                    end_time: new Date(Date.now() + 7200000), 
-                    slot_needed: text.match(/\d+/) ? parseInt(text.match(/\d+/)![0], 10) : 1,
-                    price_per_slot: "Liên hệ trực tiếp",
+                    start_time: parsedData.start_time, 
+                    end_time: parsedData.end_time, 
+                    slot_needed: parsedData.slot_needed,
+                    price_per_slot: String(parsedData.price_per_slot),
+                    level_required: String(parsedData.level_required),
                     source_url: postUrl
                   }
                 });
@@ -166,11 +223,11 @@ export class CrawlerService {
 
                   await ms.index('posts').addDocuments([{
                     id: newPost.id,
-                    court_name: courtNameRaw,
+                    court_name: parsedData.court_name_raw,
                     content: text,
                     timestamp: Date.now()
                   }]);
-                  log.info(`🟢 Đã ném vào Database và MeiliSearch: ${courtNameRaw} | URL: ${postUrl}`);
+                  log.info(`🟢 Đã ném vào Database và MeiliSearch: ${parsedData.court_name_raw} | URL: ${postUrl}`);
                 } catch (msErr) {
                   log.error("MeiliSearch Lỗi nhúng data:", msErr);
                 }
