@@ -1,0 +1,63 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Contabo VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+
+            PROJECT_DIR="/root/danang-badminton-hub"
+
+            # Clone on first deploy, pull on subsequent
+            if [ ! -d "$PROJECT_DIR" ]; then
+              echo "📦 First deploy — cloning repo..."
+              git clone https://github.com/khanhduong22/danang-badminton-hub.git "$PROJECT_DIR"
+            else
+              echo "🔄 Pulling latest code..."
+              cd "$PROJECT_DIR"
+              git pull origin main
+            fi
+
+            cd "$PROJECT_DIR"
+
+            # Write .env from GitHub Secrets
+            cat > deploy/.env << EOF
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            FB_EMAIL=${{ secrets.FB_EMAIL }}
+            FB_PASSWORD=${{ secrets.FB_PASSWORD }}
+            FB_COOKIE=${{ secrets.FB_COOKIE }}
+            FB_GROUP_IDS=${{ secrets.FB_GROUP_IDS }}
+            EOF
+
+            # Install Playwright Chromium in backend if needed
+            cd deploy
+
+            # Build & restart backend only (preserve DB + Meilisearch data)
+            docker compose build backend
+            docker compose up -d
+
+            # Wait for backend to be healthy
+            echo "⏳ Waiting for backend..."
+            sleep 8
+            docker compose ps
+            docker compose logs backend --tail=30
+
+            echo "✅ Deploy complete!"
