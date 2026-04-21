@@ -117,8 +117,8 @@ export class CrawlerService {
                 });
                 
                 try {
-                  const { MeiliSearch } = require('meilisearch');
-                  const ms = new MeiliSearch({
+                  const { Meilisearch } = require('meilisearch');
+                  const ms = new Meilisearch({
                     host: process.env.MEILI_HOST || 'http://localhost:7700',
                     apiKey: process.env.MEILI_MASTER_KEY || 'supersecretmeilisearchkey'
                   });

@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
-import { MeiliSearch } from 'meilisearch';
+import { Meilisearch } from 'meilisearch';
 
 const prisma = new PrismaClient();
-const ms = new MeiliSearch({
+const ms = new Meilisearch({
   host: process.env.MEILI_HOST || 'http://localhost:7700',
   apiKey: process.env.MEILI_MASTER_KEY || 'supersecretmeilisearchkey'
 });
