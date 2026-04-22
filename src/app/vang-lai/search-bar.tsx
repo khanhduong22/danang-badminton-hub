@@ -19,8 +19,10 @@ export default function SearchBar() {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [level, setLevel] = useState(searchParams.get("level") || "");
+  const [area, setArea] = useState(searchParams.get("area") || "");
+  const [court, setCourt] = useState(searchParams.get("court") || "");
   const [showFilters, setShowFilters] = useState(
-    !!(searchParams.get("level") || searchParams.get("type"))
+    !!(searchParams.get("level") || searchParams.get("area") || searchParams.get("court"))
   );
   const [isPending, startTransition] = useTransition();
 
@@ -28,6 +30,8 @@ export default function SearchBar() {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (level) params.set("level", level);
+    if (area) params.set("area", area);
+    if (court) params.set("court", court);
     return `/vang-lai${params.toString() ? `?${params.toString()}` : ""}`;
   }
 
@@ -39,10 +43,12 @@ export default function SearchBar() {
   function clearAll() {
     setQuery("");
     setLevel("");
+    setArea("");
+    setCourt("");
     startTransition(() => router.push("/vang-lai"));
   }
 
-  const hasFilters = query || level;
+  const hasFilters = query || level || area || court;
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto mb-6 w-full space-y-3">
@@ -79,22 +85,76 @@ export default function SearchBar() {
 
       {/* Filter row */}
       {showFilters && (
-        <div className="flex flex-wrap gap-2 items-center bg-gray-50 rounded-xl p-3 border border-gray-100">
-          <span className="text-xs font-medium text-gray-500 mr-1">Trình độ:</span>
-          {LEVELS.map((l) => (
-            <button
-              key={l.value}
-              type="button"
-              onClick={() => setLevel(l.value)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
-                level === l.value
-                  ? "bg-emerald-600 text-white border-emerald-600"
-                  : "bg-white text-gray-600 border-gray-200 hover:border-emerald-400 hover:text-emerald-700"
-              }`}
-            >
-              {l.label}
-            </button>
-          ))}
+        <div className="flex flex-col gap-3 bg-gray-50 rounded-xl p-4 border border-gray-100">
+          {/* Level */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs font-medium text-gray-500 mr-1 min-w-[60px]">Trình độ:</span>
+            {LEVELS.map((l) => (
+              <button
+                key={l.value}
+                type="button"
+                onClick={() => setLevel(l.value)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                  level === l.value
+                    ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-emerald-400 hover:text-emerald-700"
+                }`}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Area & Court */}
+          <div className="flex flex-wrap gap-4 items-center mt-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 min-w-[60px]">Khu vực:</span>
+              <select
+                value={area}
+                onChange={(e) => setArea(e.target.value)}
+                className="text-sm border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-3 bg-white outline-none cursor-pointer"
+              >
+                <option value="">Mọi khu vực</option>
+                <option value="Hải Châu">Quận Hải Châu</option>
+                <option value="Thanh Khê">Quận Thanh Khê</option>
+                <option value="Sơn Trà">Quận Sơn Trà</option>
+                <option value="Ngũ Hành Sơn">Quận Ngũ Hành Sơn</option>
+                <option value="Liên Chiểu">Quận Liên Chiểu</option>
+                <option value="Cẩm Lệ">Quận Cẩm Lệ</option>
+                <option value="Hòa Vang">Huyện Hòa Vang</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 ml-1">Sân:</span>
+              <select
+                value={court}
+                onChange={(e) => setCourt(e.target.value)}
+                className="text-sm border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-3 bg-white outline-none cursor-pointer"
+              >
+                <option value="">Mọi sân</option>
+                <option value="Tiên Sơn">Sân Tiên Sơn</option>
+                <option value="Tuyên Sơn">Sân Tuyên Sơn</option>
+                <option value="Win Win">Sân Win Win</option>
+                <option value="Kỳ Đồng">Sân Kỳ Đồng</option>
+                <option value="Đa Phước">Sân Đa Phước</option>
+                <option value="Bách Khoa">Sân Bách Khoa</option>
+                <option value="Kiến Trúc">Sân Kiến Trúc</option>
+                <option value="Vạn Thắng">Sân Vạn Thắng</option>
+                <option value="Quân Khu 5">Sân Quân Khu 5</option>
+              </select>
+            </div>
+
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="text-xs text-red-500 hover:text-red-700 font-medium ml-auto flex items-center gap-1 px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
+              >
+                <X className="w-3 h-3" /> Xóa bộ lọc
+              </button>
+            )}
+          </div>
         </div>
       )}
 

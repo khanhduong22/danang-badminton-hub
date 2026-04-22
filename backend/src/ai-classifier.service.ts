@@ -142,12 +142,29 @@ Trả về JSON hợp lệ theo schema đã định nghĩa.
       const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const ai: AiClassification = JSON.parse(cleaned);
 
+      // --- FILTER ADS & INVALID POSTS ---
+      // The user noted that posts without a clear court_name are almost always ads/spam.
+      // We also drop posts explicitly classified as 'khac' (other) or low confidence.
+      const isSpamOrAd = ai.post_type === 'khac' || !ai.court_name || ai.confidence < 0.5;
+
+      if (isSpamOrAd) {
+        this.logger.warn(
+          `🗑️ Bỏ qua bài rác/quảng cáo: [${ai.post_type}] court="${ai.court_name || 'N/A'}" conf=${ai.confidence} | post ${raw.fb_post_id}`
+        );
+        // Mark raw as processed but DO NOT create WanderingPost
+        await this.prisma.fbRawContent.update({
+          where: { id: raw.id },
+          data: { processed: true },
+        });
+        return;
+      }
+
       // Save structured post
       const created = await this.prisma.wanderingPost.create({
         data: {
           raw_content_id: raw.id,
-          post_type: ai.post_type || 'khac',
-          court_name: ai.court_name || null,
+          post_type: ai.post_type,
+          court_name: ai.court_name,
           address_raw: ai.address || null,
           start_time: ai.start_time ? new Date(ai.start_time) : null,
           end_time: ai.end_time ? new Date(ai.end_time) : null,

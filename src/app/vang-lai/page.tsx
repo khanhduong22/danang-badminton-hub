@@ -52,8 +52,13 @@ export default async function VangLaiPage(props: Props) {
   const q = sp?.q as string | undefined;
   const level = sp?.level as string | undefined;
   const type = sp?.type as string | undefined;
+  const area = sp?.area as string | undefined;
+  const court = sp?.court as string | undefined;
 
-  const posts = await getPosts(q, level, type);
+  // Combine textual filters into the main Meilisearch query
+  const searchTerms = [q, area, court].filter(Boolean).join(" ");
+
+  const posts = await getPosts(searchTerms, level, type);
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-6xl">
@@ -73,15 +78,25 @@ export default async function VangLaiPage(props: Props) {
       </div>
 
       {/* Active filter badges */}
-      {(level || type) && (
+      {(level || type || area || court) && (
         <div className="flex gap-2 mb-6 flex-wrap">
           {level && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-3 py-1 text-sm font-medium text-teal-800">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800 border border-emerald-200">
               Trình độ: {LEVEL_LABELS[level] ?? level}
             </span>
           )}
+          {area && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800 border border-blue-200">
+              Khu vực: {area}
+            </span>
+          )}
+          {court && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-sm font-medium text-orange-800 border border-orange-200">
+              Sân: {court}
+            </span>
+          )}
           {type && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-800">
+            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-800 border border-indigo-200">
               Loại: {type === "vang_lai" ? "Vãng lai" : type}
             </span>
           )}
