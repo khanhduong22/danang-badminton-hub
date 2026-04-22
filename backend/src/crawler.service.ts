@@ -209,8 +209,9 @@ export class CrawlerService {
       await page.fill('input[name="pass"]', password);
       await this.sleep(500);
 
-      // Submit — mbasic has <input type="submit"> without name sometimes
-      await page.click('input[type="submit"][name="login"], input[name="login"], button[name="login"], input[type="submit"]');
+      // Submit — Facebook often hides the actual submit input (visible=false)
+      // and uses a div[role="button"]. Pressing Enter is the most robust way.
+      await page.keyboard.press('Enter');
       
       // Wait for URL to change away from /login/
       try {
