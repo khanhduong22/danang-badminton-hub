@@ -10,7 +10,7 @@ import { FbScraperCoreService } from './fb-scraper-core.service';
 // Config — add group IDs here or via env FB_GROUP_IDS=id1,id2
 // ---------------------------------------------------------------------------
 const FB_GROUP_IDS: string[] = (
-  process.env.FB_GROUP_IDS || '594956003862912'
+  process.env.FB_GROUP_IDS || '1867140416954200'
 )
   .split(',')
   .map((s) => s.trim())
@@ -27,7 +27,7 @@ export class CrawlerService {
     private readonly prisma: PrismaService,
     private readonly fbSession: FbSessionService,
     private readonly fbScraper: FbScraperCoreService,
-  ) {}
+  ) { }
 
   // -------------------------------------------------------------------------
   // Cron schedules

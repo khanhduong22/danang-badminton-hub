@@ -37,7 +37,7 @@ services:
       - FB_EMAIL=${FB_EMAIL}
       - FB_PASSWORD=${FB_PASSWORD}
       - FB_COOKIE=${FB_COOKIE}
-      - FB_GROUP_IDS=${FB_GROUP_IDS:-594956003862912}
+      - FB_GROUP_IDS=${FB_GROUP_IDS:-1867140416954200}
     ports:
       - "3001:3001"
     depends_on:
