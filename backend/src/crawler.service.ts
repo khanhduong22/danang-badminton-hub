@@ -190,15 +190,27 @@ export class CrawlerService {
         timeout: 30000,
       });
 
+      // Handle cookie consent wall (often appears on VPS/EU IPs)
+      try {
+        const cookieButton = await page.$('button[name="accept_only_essential"], button[name="accept_all"], a[href*="cookie/consent"], button[value="1"], input[value="1"][type="submit"]');
+        if (cookieButton) {
+          this.logger.log('🍪 Tìm thấy trang Cookie Consent, đang click bỏ qua...');
+          await cookieButton.click();
+          await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+        }
+      } catch (err) {
+        // Ignore errors if no cookie wall
+      }
+
       // mbasic login form: input[name="email"] and input[name="pass"]
+      await page.waitForSelector('input[name="email"]', { timeout: 10000 });
       await page.fill('input[name="email"]', email);
       await this.sleep(500);
       await page.fill('input[name="pass"]', password);
       await this.sleep(500);
 
-      // Submit — mbasic has <input type="submit" name="login">
-      // Don't use waitForNavigation with click as mbasic form submit can be tricky
-      await page.click('input[type="submit"][name="login"], input[name="login"], button[name="login"]');
+      // Submit — mbasic has <input type="submit"> without name sometimes
+      await page.click('input[type="submit"][name="login"], input[name="login"], button[name="login"], input[type="submit"]');
       
       // Wait for URL to change away from /login/
       try {
