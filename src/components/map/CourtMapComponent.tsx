@@ -47,14 +47,43 @@ interface CourtMapProps {
   posts: Post[];
 }
 
+const FALLBACK_COORDS: Record<string, [number, number]> = {
+  "tiên sơn": [16.0355, 108.2238],
+  "tuyên sơn": [16.0355, 108.2238],
+  "win win": [16.0381, 108.2162],
+  "kỳ đồng": [16.0682, 108.1751],
+  "đa phước": [16.0827, 108.2045],
+  "kiến trúc": [16.0336, 108.2227],
+  "bách khoa": [16.0738, 108.1499],
+  "cẩm lệ": [16.0125, 108.2104],
+  "hòa xuân": [15.9926, 108.2230],
+  "quân khu 5": [16.0461, 108.2154],
+  "sơn trà": [16.0759, 108.2384],
+  "kỳ hòa": [16.0685, 108.1760]
+};
+
+function getCoords(court: Post["court"]): [number, number] | null {
+  if (court?.latitude && court?.longitude) return [court.latitude, court.longitude];
+  if (!court?.name) return null;
+  const name = court.name.toLowerCase();
+  for (const [key, coords] of Object.entries(FALLBACK_COORDS)) {
+    if (name.includes(key)) return coords;
+  }
+  return null;
+}
+
 export default function CourtMapComponent({ posts }: CourtMapProps) {
   // Group posts by court
   const courtsMap = new Map<number, { court: Post["court"]; posts: Post[] }>();
 
   posts.forEach((post) => {
-    if (post.court && post.court.latitude && post.court.longitude) {
+    const coords = getCoords(post.court);
+    if (post.court && coords) {
       if (!courtsMap.has(post.court.id)) {
-        courtsMap.set(post.court.id, { court: post.court, posts: [] });
+        courtsMap.set(post.court.id, { 
+          court: { ...post.court, latitude: coords[0], longitude: coords[1] }, 
+          posts: [] 
+        });
       }
       courtsMap.get(post.court.id)!.posts.push(post);
     }
