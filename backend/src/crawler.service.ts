@@ -4,6 +4,7 @@ import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import { PrismaService } from './prisma.service';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Meilisearch } from 'meilisearch';
 
 // ---------------------------------------------------------------------------
 // Config — add group IDs here or via env FB_GROUP_IDS=id1,id2
@@ -58,6 +59,16 @@ export class CrawlerService {
   // -------------------------------------------------------------------------
   // Main entry point
   // -------------------------------------------------------------------------
+  @Cron('*/30 * * * *')
+  async handleRecheckActivePostsCron() {
+    this.logger.debug('Kích hoạt Cron Recheck Active Posts (30 phút/lần)');
+    try {
+      await this.recheckActivePosts();
+    } catch (err) {
+      this.logger.error('Lỗi khi recheck active posts:', err);
+    }
+  }
+
   async runCrawlee() {
     this.logger.log('🕷️ Bắt đầu cào Facebook Groups...');
 
@@ -122,6 +133,145 @@ export class CrawlerService {
       this.logger.log(`✅ Cào xong: ${toProcess.length} bài mới nhét vào DB`);
     } catch (err) {
       this.logger.error('Crawler lỗi:', err);
+    } finally {
+      await browser?.close();
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Auto-deactivate Full Posts
+  // -------------------------------------------------------------------------
+  async recheckActivePosts() {
+    const activePosts = await this.prisma.wanderingPost.findMany({
+      where: {
+        is_active: true,
+        start_time: { gte: new Date() }, // Only posts that haven't started yet
+        post_url: { not: null },
+      },
+      include: { raw_content: true },
+    });
+
+    if (activePosts.length === 0) return;
+
+    this.logger.log(`🔄 Rechecking ${activePosts.length} active posts...`);
+
+    let browser;
+    try {
+      browser = await chromium.launch({ headless: true });
+      const context = await browser.newContext({
+        viewport: { width: 1280, height: 720 },
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      });
+      const page = await context.newPage();
+
+      const loggedIn = await this.ensureSession(context, page);
+      if (!loggedIn) {
+        this.logger.error('💥 Cannot login for recheck.');
+        return;
+      }
+
+      let closedCount = 0;
+      // Slang dictionary for closed badminton matches
+      const isClosedRegex = /(?<!chưa\s)(?<!không\s)(đã\s+)?(full|đủ|chốt|pass|xong|kín|đóng|hủy)/i;
+
+      for (const post of activePosts) {
+        try {
+          await page.goto(post.post_url!, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+          // Expand post text
+          try {
+            const seeMoreBtn = page.locator(
+              'div[data-ad-preview="message"] [role="button"]:has-text("Xem thêm"), div[data-ad-preview="message"] [role="button"]:has-text("See more")'
+            );
+            if ((await seeMoreBtn.count()) > 0) {
+              await seeMoreBtn.first().click();
+              await this.sleep(500);
+            }
+          } catch {}
+
+          const scraped = await page.evaluate(() => {
+            const result: {
+              postText: string;
+              comments: { author: string; authorUrl: string | null; text: string }[];
+            } = {
+              postText: '',
+              comments: [],
+            };
+
+            const postBody = document.querySelector(
+              '[data-ad-preview="message"], div[data-testid="post_message"]'
+            );
+            if (postBody) {
+              result.postText = (postBody as HTMLElement).innerText?.trim() || '';
+            }
+
+            if (!result.postText) {
+              const candidates = Array.from(document.querySelectorAll('div[dir="auto"]'));
+              const texts = candidates
+                .map((el) => (el as HTMLElement).innerText?.trim() || '')
+                .filter((t) => t.length > 30 && !t.includes('Facebook') && t.length < 3000);
+              result.postText = texts[0] || '';
+            }
+
+            document.querySelectorAll('div[aria-label][role="article"]').forEach((commentEl) => {
+              const authorEl = commentEl.querySelector('a[role="link"]') as HTMLAnchorElement | null;
+              const bodyEl = commentEl.querySelector('div[dir="auto"]') as HTMLElement | null;
+              const text = bodyEl?.innerText?.trim() || '';
+              if (text.length > 0 && text !== result.postText) {
+                result.comments.push({
+                  author: authorEl?.innerText.trim() || 'Unknown',
+                  authorUrl: authorEl?.href || null,
+                  text,
+                });
+              }
+            });
+
+            return result;
+          });
+
+          let shouldClose = false;
+
+          // Check if post text explicitly says "đã full"
+          if (scraped.postText && isClosedRegex.test(scraped.postText)) {
+            shouldClose = true;
+          }
+
+          // Check comments by author
+          for (const comment of scraped.comments) {
+            const isAuthor =
+              (post.author_url && comment.authorUrl && comment.authorUrl === post.author_url) ||
+              (post.raw_content?.author_name && comment.author === post.raw_content.author_name);
+            if (isAuthor && isClosedRegex.test(comment.text)) {
+              shouldClose = true;
+              break;
+            }
+          }
+
+          if (shouldClose) {
+            this.logger.log(`❌ Đã full/chốt: Post ${post.id}`);
+            await this.prisma.wanderingPost.update({
+              where: { id: post.id },
+              data: { is_active: false },
+            });
+
+            const meili = new Meilisearch({
+              host: process.env.MEILI_HOST || 'http://localhost:7700',
+              apiKey: process.env.MEILI_MASTER_KEY || 'supersecretmeilisearchkey',
+            });
+            await meili.index('posts').updateDocuments([{ id: post.id, is_active: false }]);
+            closedCount++;
+          }
+        } catch (err: any) {
+          this.logger.warn(`Failed to recheck post ${post.id}: ${err.message}`);
+        }
+
+        await this.sleep(POST_DELAY_MS);
+      }
+
+      this.logger.log(`✅ Recheck xong. Đã đóng ${closedCount} bài viết.`);
+    } catch (err) {
+      this.logger.error('Lỗi khi chạy recheckActivePosts:', err);
     } finally {
       await browser?.close();
     }
