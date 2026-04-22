@@ -1,5 +1,7 @@
 import { Clock, MapPin, Users, Ticket, ExternalLink, Star } from "lucide-react";
 import SearchBar from "./search-bar";
+import ViewToggle from "@/components/map/ViewToggle";
+import CourtMap from "@/components/map/CourtMap";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -64,6 +66,7 @@ export default async function VangLaiPage(props: Props) {
   const type = sp?.type as string | undefined;
   const area = sp?.area as string | undefined;
   const court = sp?.court as string | undefined;
+  const view = sp?.view as string | undefined;
 
   // Combine textual filters into the main Meilisearch query
   const searchTerms = [q, area, court].filter(Boolean).join(" ");
@@ -113,7 +116,20 @@ export default async function VangLaiPage(props: Props) {
         </div>
       )}
 
-      {/* Posts grid */}
+      {/* View Toggle Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">
+            {view === "map" ? "Bản đồ khu vực" : "Danh sách bài đăng"}
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Tìm thấy {posts.length} kèo phù hợp
+          </p>
+        </div>
+        <ViewToggle />
+      </div>
+
+      {/* Main Content Area */}
       {posts.length === 0 ? (
         <div className="text-center py-20 bg-emerald-50/50 rounded-2xl border border-emerald-100">
           <p className="text-lg text-emerald-600 font-medium">
@@ -121,6 +137,8 @@ export default async function VangLaiPage(props: Props) {
             quay lại sau ít phút...
           </p>
         </div>
+      ) : view === "map" ? (
+        <CourtMap posts={posts} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {posts.map((post: any) => {
