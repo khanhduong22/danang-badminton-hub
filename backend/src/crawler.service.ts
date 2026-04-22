@@ -258,8 +258,10 @@ export class CrawlerService {
     page: Page,
     groupId: string,
   ): Promise<{ groupId: string; postId: string; postUrl: string }[]> {
-    const feedUrl = `https://www.facebook.com/groups/${groupId}`;
-    this.logger.log(`📄 Phase 1: cào feed group ${groupId}`);
+    // Append ?sorting_setting=CHRONOLOGICAL to force Facebook to sort by "Newest Posts"
+    // rather than "Recent Activity" so we don't miss new posts without comments.
+    const feedUrl = `https://www.facebook.com/groups/${groupId}?sorting_setting=CHRONOLOGICAL`;
+    this.logger.log(`📄 Phase 1: cào feed group ${groupId} (Sắp xếp: Mới nhất)`);
 
     try {
       await page.goto(feedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
