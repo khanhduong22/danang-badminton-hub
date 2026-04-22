@@ -81,7 +81,10 @@ ${raw.post_text}
 ${commentContext ? `BÌNH LUẬN ĐẦU TIÊN:\n${commentContext}` : ''}
 
 Hãy trích xuất thông tin có cấu trúc từ bài viết trên. Nếu không có thông tin, để null.
-Quy tắc level_required: "yeu"=yếu, "tb-"=trung bình yếu, "tb"=trung bình, "tb+"=trung bình khá, "kha"=khá, "gioi"=giỏi.
+Quy tắc quan trọng:
+1. "pass sân", "nhượng sân" -> post_type = "cho_thue_san"
+2. Tên sân có thể là tiếng Anh hoặc lóng (vd: Pin Pon, King Sport, Kiến Trúc...), đừng đánh rác nếu thấy tên lạ.
+3. Quy tắc level_required: "yeu"=yếu, "tb-"=trung bình yếu, "tb"=trung bình, "tb+"=trung bình khá, "kha"=khá, "gioi"=giỏi.
 Trả về JSON hợp lệ theo schema đã định nghĩa.
 `.trim();
 

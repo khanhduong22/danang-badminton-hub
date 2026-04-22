@@ -90,25 +90,24 @@ export class FbScraperCoreService {
         comments: [],
       };
 
-      // Desktop FB: post body in div[data-ad-preview="message"] or aria-label article
-      const postBody = document.querySelector('[data-ad-preview="message"], div[data-testid="post_message"]');
-      if (postBody) {
-        result.postText = (postBody as HTMLElement).innerText?.trim() || '';
-      }
-
-      // Fallback: grab all dir=auto divs with substantial text
-      if (!result.postText) {
-        const candidates = Array.from(document.querySelectorAll('div[dir="auto"]'));
-        const texts = candidates
-          .map((el) => (el as HTMLElement).innerText?.trim() || '')
-          .filter((t) => t.length > 30 && !t.includes('Facebook') && t.length < 3000);
-        result.postText = texts[0] || '';
-      }
-
-      // Author: h2 inside the first article
+      // Restrict all extraction to the first article (the main post) to avoid sidebars and ads
       const article = document.querySelector('div[role="article"]');
       if (article) {
-        const authorLink = article.querySelector('h2 a, strong a') as HTMLAnchorElement | null;
+        const postBody = article.querySelector('div[data-testid="post_message"]');
+        if (postBody) {
+          result.postText = (postBody as HTMLElement).innerText?.trim() || '';
+        }
+
+        if (!result.postText) {
+          const candidates = Array.from(article.querySelectorAll('div[dir="auto"]'));
+          const texts = candidates
+            .map((el) => (el as HTMLElement).innerText?.trim() || '')
+            .filter((t) => t.length > 30 && !t.includes('Facebook') && t.length < 3000);
+          result.postText = texts[0] || '';
+        }
+
+        // Author
+        const authorLink = article.querySelector('h2 a, strong a, span a[role="link"]') as HTMLAnchorElement | null;
         if (authorLink) {
           result.authorName = authorLink.innerText.trim();
           result.authorUrl = authorLink.href;
