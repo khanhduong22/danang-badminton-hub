@@ -1,5 +1,15 @@
 import { Clock, MapPin, Users, Ticket, ExternalLink, Star } from "lucide-react";
 import SearchBar from "./search-bar";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Tìm Kèo Vãng Lai",
+  description: "Tổng hợp các kèo vãng lai cầu lông tại Đà Nẵng hôm nay. Cập nhật liên tục từ các group Facebook.",
+  openGraph: {
+    title: "Tìm Kèo Vãng Lai - Danang Badminton Hub",
+    description: "Tổng hợp các kèo vãng lai cầu lông tại Đà Nẵng hôm nay. Cập nhật liên tục từ các group Facebook.",
+  },
+};
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
