@@ -67,15 +67,18 @@ export class FbScraperCoreService {
 
     // Click "See More" / "Xem thêm" to expand truncated post text
     try {
-      const seeMoreBtn = page.locator(
-        'div[data-ad-preview="message"] [role="button"]:has-text("Xem thêm"), div[data-ad-preview="message"] [role="button"]:has-text("See more")'
-      );
-      if ((await seeMoreBtn.count()) > 0) {
-        await seeMoreBtn.first().click();
-        await this.sleep(500);
-      }
-    } catch {
-      // No "See More" button — post text already fully visible
+      await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('div[role="button"]'));
+        for (const btn of buttons) {
+          const text = (btn as HTMLElement).innerText?.trim() || '';
+          if (text === 'Xem thêm' || text === 'See more' || text.includes('Xem thêm') || text.includes('See more')) {
+            (btn as HTMLElement).click();
+          }
+        }
+      });
+      await this.sleep(800); // Give it time to expand the DOM
+    } catch (e) {
+      this.logger.warn(`Error expanding post text: ${e}`);
     }
 
     const scraped = await page.evaluate((): ScrapedPost => {
