@@ -4,6 +4,8 @@ import { GoogleGenAI } from '@google/genai';
 import { PrismaService } from './prisma.service';
 import { Meilisearch } from 'meilisearch';
 import { FbRawContent } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const AI_MODEL = process.env.AI_MODEL || 'gemma-4-31b-it';
 const BATCH_SIZE = 5; // Process N raw posts per cron tick
@@ -148,6 +150,14 @@ Trả về JSON hợp lệ theo schema đã định nghĩa.
       const isSpamOrAd = ai.post_type === 'khac' || !ai.court_name || ai.confidence < 0.5;
 
       if (isSpamOrAd) {
+        if (raw.post_url) {
+          try {
+            const logPath = path.join(process.cwd(), 'storage', 'spam_urls.log');
+            fs.appendFileSync(logPath, `[${now}] ${raw.post_url}\n`);
+          } catch (e) {
+            this.logger.error('Failed to write to spam_urls.log', e);
+          }
+        }
         this.logger.warn(
           `🗑️ Bỏ qua bài rác/quảng cáo: [${ai.post_type}] court="${ai.court_name || 'N/A'}" conf=${ai.confidence} | post ${raw.fb_post_id}`
         );

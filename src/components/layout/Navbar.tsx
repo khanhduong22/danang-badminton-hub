@@ -31,6 +31,13 @@ export function Navbar() {
             <span className="hidden sm:inline">Tìm Vãng Lai</span>
           </Link>
           <Link
+            href="/pass-san"
+            className="transition-colors hover:text-primary flex items-center gap-2 text-muted-foreground"
+          >
+            <Map className="h-4 w-4" />
+            <span className="hidden sm:inline">Pass Sân</span>
+          </Link>
+          <Link
             href="/#gear"
             className="transition-colors hover:text-primary flex items-center gap-2 text-muted-foreground"
           >

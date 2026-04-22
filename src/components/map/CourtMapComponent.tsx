@@ -59,7 +59,8 @@ const FALLBACK_COORDS: Record<string, [number, number]> = {
   "hòa xuân": [15.9926, 108.2230],
   "quân khu 5": [16.0461, 108.2154],
   "sơn trà": [16.0759, 108.2384],
-  "kỳ hòa": [16.0685, 108.1760]
+  "kỳ hòa": [16.0685, 108.1760],
+  "04 lê duẩn": [16.0754, 108.2223]
 };
 
 function getCoords(court: Post["court"]): [number, number] | null {
