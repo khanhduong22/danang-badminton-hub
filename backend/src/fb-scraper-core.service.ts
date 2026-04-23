@@ -67,15 +67,16 @@ export class FbScraperCoreService {
 
     // Click "See More" / "Xem thêm" to expand truncated post text
     try {
-      await page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('div[role="button"]'));
-        for (const btn of buttons) {
-          const text = (btn as HTMLElement).innerText?.trim() || '';
-          if (text === 'Xem thêm' || text === 'See more' || text.includes('Xem thêm') || text.includes('See more')) {
-            (btn as HTMLElement).click();
+      const seeMoreBtns = page.getByText('Xem thêm', { exact: true }).or(page.getByText('See more', { exact: true }));
+      const count = await seeMoreBtns.count();
+      for (let i = 0; i < count; i++) {
+        try {
+          if (await seeMoreBtns.nth(i).isVisible()) {
+            await seeMoreBtns.nth(i).click({ timeout: 1000 });
+            await this.sleep(500);
           }
-        }
-      });
+        } catch (e) {}
+      }
       await this.sleep(800); // Give it time to expand the DOM
     } catch (e) {
       this.logger.warn(`Error expanding post text: ${e}`);
@@ -104,6 +105,11 @@ export class FbScraperCoreService {
             .map((el) => (el as HTMLElement).innerText?.trim() || '')
             .filter((t) => t.length > 30 && !t.includes('Facebook') && t.length < 3000);
           result.postText = texts[0] || '';
+        }
+
+        // Clean up text
+        if (result.postText) {
+          result.postText = result.postText.replace(/\.\.\.\s*Xem thêm/g, '').replace(/Xem thêm/g, '').trim();
         }
 
         // Author
