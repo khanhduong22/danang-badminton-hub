@@ -316,5 +316,536 @@
       "Q. Cẩm Lệ"
     ],
     "created_at": "2026-04-20T06:36:48.617Z"
+  },
+  {
+    "id": "court-27",
+    "name": "Sân BetaEra",
+    "address": "275 Nguyễn Tri Phương, P. Thanh Bình, Q. Hải Châu",
+    "latitude": 16.048,
+    "longitude": 108.205,
+    "contact_number": "0935665976",
+    "zalo_url": "https://zalo.me/0935665976",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 16,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Hải Châu",
+      "Nhiều sân"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-28",
+    "name": "Sân Trọng Nghĩa 1",
+    "address": "458 Nguyễn Tri Phương, P. Bình Thuận, Q. Hải Châu",
+    "latitude": 16.04,
+    "longitude": 108.197,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Hải Châu"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-29",
+    "name": "TT Thể thao Hải Châu",
+    "address": "49 Tân An 3, P. Thanh Bình, Q. Hải Châu",
+    "latitude": 16.055,
+    "longitude": 108.207,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Hải Châu"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-30",
+    "name": "Sân 04 Lê Duẩn",
+    "address": "04 Lê Duẩn, P. Hòa Cường Bắc, Q. Hải Châu",
+    "latitude": 16.06,
+    "longitude": 108.22,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Hải Châu"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-31",
+    "name": "Sân Đa Phước",
+    "address": "KĐT Đa Phước, P. Hòa Thuận Tây, Q. Hải Châu",
+    "latitude": 16.035,
+    "longitude": 108.195,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Hải Châu"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-32",
+    "name": "Sân Bưu Điện",
+    "address": "50B Nguyễn Du, P. Hòa Cường Nam, Q. Hải Châu",
+    "latitude": 16.063,
+    "longitude": 108.218,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Hải Châu"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-33",
+    "name": "Sân Trọng Nghĩa 2",
+    "address": "194 Bế Văn Đàn, P. An Khê, Q. Thanh Khê",
+    "latitude": 16.0652,
+    "longitude": 108.1934,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Thanh Khê"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-34",
+    "name": "Sân CĐ Thương Mại",
+    "address": "45 Dũng Sĩ Thanh Khê, P. Thanh Khê Tây, Q. Thanh Khê",
+    "latitude": 16.0774,
+    "longitude": 108.1708,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Thanh Khê",
+      "Sân trường"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-35",
+    "name": "CLB An Khê",
+    "address": "178 Nguyễn Đình Tựu, P. An Khê, Q. Thanh Khê",
+    "latitude": 16.057,
+    "longitude": 108.1842,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Thanh Khê"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-36",
+    "name": "Sân ACE Badminton",
+    "address": "257 Dũng Sĩ Thanh Khê, P. Thanh Khê Tây, Q. Thanh Khê",
+    "latitude": 16.07,
+    "longitude": 108.175,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Thanh Khê"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-37",
+    "name": "Sân Wings (CĐ Nghề Đà Nẵng)",
+    "address": "132 Tô Hiến Thành, P. An Hải Bắc, Q. Sơn Trà",
+    "latitude": 16.075,
+    "longitude": 108.235,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Sơn Trà",
+      "Sân trường"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-38",
+    "name": "Sân An Đồn 5.5",
+    "address": "Đường số 5, KCN An Đồn, Q. Sơn Trà",
+    "latitude": 16.082,
+    "longitude": 108.237,
+    "contact_number": "0708721111",
+    "zalo_url": "https://zalo.me/0708721111",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 6,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Sơn Trà",
+      "Nhiều sân"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-39",
+    "name": "Sân Hồ Nghinh",
+    "address": "Q. Sơn Trà",
+    "latitude": 16.078,
+    "longitude": 108.24,
+    "contact_number": "0934768034",
+    "zalo_url": "https://zalo.me/0934768034",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Sơn Trà"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-40",
+    "name": "Sân Arena.01",
+    "address": "40 Hoàng Văn Thái, P. Hòa Khánh Nam, Q. Liên Chiểu",
+    "latitude": 16.075,
+    "longitude": 108.148,
+    "contact_number": "0788818585",
+    "zalo_url": "https://zalo.me/0788818585",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Liên Chiểu"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-41",
+    "name": "Sân Hunter",
+    "address": "459 Tôn Đức Thắng, P. Hòa Khánh Nam, Q. Liên Chiểu",
+    "latitude": 16.08,
+    "longitude": 108.15,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Liên Chiểu"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-42",
+    "name": "Sân AlphaEra",
+    "address": "Cạnh Mikazuki, P. Hòa Hiệp Nam, Q. Liên Chiểu",
+    "latitude": 16.085,
+    "longitude": 108.155,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Liên Chiểu"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-43",
+    "name": "Sân Làng Hòa Mỹ",
+    "address": "K120 Nguyễn Huy Tưởng, P. Hòa Khánh Nam, Q. Liên Chiểu",
+    "latitude": 16.078,
+    "longitude": 108.142,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Liên Chiểu"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-44",
+    "name": "Sân Min Tom",
+    "address": "108 Hoàng Minh Thảo, P. Hòa Khánh Nam, Q. Liên Chiểu",
+    "latitude": 16.082,
+    "longitude": 108.138,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Liên Chiểu"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-45",
+    "name": "Sân INDEXSPORT Cẩm Lệ",
+    "address": "448 Mẹ Thứ, P. Hòa An, Q. Cẩm Lệ",
+    "latitude": 16.008,
+    "longitude": 108.218,
+    "contact_number": "0981086979",
+    "zalo_url": "https://zalo.me/0981086979",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 6,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Cẩm Lệ"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-46",
+    "name": "Sân Hiếu Con",
+    "address": "172-182 Đỗ Quỳ, P. Hòa Xuân, Q. Cẩm Lệ",
+    "latitude": 16.015,
+    "longitude": 108.225,
+    "contact_number": "0905403222",
+    "zalo_url": "https://zalo.me/0905403222",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Cẩm Lệ"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-47",
+    "name": "Nhà Thi Đấu Hòa Xuân",
+    "address": "01A Dương Loan, P. Hòa Xuân, Q. Cẩm Lệ",
+    "latitude": 16.003,
+    "longitude": 108.212,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 6,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Cẩm Lệ"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-48",
+    "name": "Sân Hoa Cam",
+    "address": "02 Trường Sơn, P. Hòa An, Q. Cẩm Lệ",
+    "latitude": 16.02,
+    "longitude": 108.21,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Cẩm Lệ"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-49",
+    "name": "Sân Dương Gia Hòa Xuân",
+    "address": "207 Quách Thị Trang, P. Hòa Xuân, Q. Cẩm Lệ",
+    "latitude": 16.005,
+    "longitude": 108.2236,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Cẩm Lệ"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-50",
+    "name": "Sân Mỹ An",
+    "address": "382 Ngũ Hành Sơn, P. Mỹ An, Q. Ngũ Hành Sơn",
+    "latitude": 16.0108,
+    "longitude": 108.2532,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Ngũ Hành Sơn"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-51",
+    "name": "TT Văn hóa Thể thao Q. Ngũ Hành Sơn",
+    "address": "01B Trần Văn Đán, P. Mỹ An, Q. Ngũ Hành Sơn",
+    "latitude": 15.995,
+    "longitude": 108.26,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Ngũ Hành Sơn"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-52",
+    "name": "Sân Thiên Vũ",
+    "address": "P. Hòa Quý, Q. Ngũ Hành Sơn",
+    "latitude": 15.9861,
+    "longitude": 108.242,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Ngũ Hành Sơn"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-53",
+    "name": "Sân LONG Badminton",
+    "address": "P. Hòa Quý, Q. Ngũ Hành Sơn",
+    "latitude": 15.988,
+    "longitude": 108.245,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Ngũ Hành Sơn"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-54",
+    "name": "Sân T&T Badminton",
+    "address": "534 Phạm Hùng, H. Hòa Vang",
+    "latitude": 16.01,
+    "longitude": 108.165,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "H. Hòa Vang"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-55",
+    "name": "Sân Lâm Gia",
+    "address": "17 Bàu Năng, P. Hòa Minh, Q. Liên Chiểu",
+    "latitude": 16.078,
+    "longitude": 108.145,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Liên Chiểu"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-56",
+    "name": "Sân ARMY Badminton",
+    "address": "Đối diện 01 Phạm Ngọc Mậu, P. An Khê, Q. Thanh Khê",
+    "latitude": 16.041,
+    "longitude": 108.188,
+    "contact_number": "",
+    "zalo_url": "",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 3,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Thanh Khê"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
+  },
+  {
+    "id": "court-57",
+    "name": "Sân ICON Badminton",
+    "address": "122 Tôn Đản, P. Hòa An, Q. Cẩm Lệ",
+    "latitude": 16.055,
+    "longitude": 108.179,
+    "contact_number": "0905591379",
+    "zalo_url": "https://zalo.me/0905591379",
+    "maps_url": "https://maps.app.goo.gl/placeholder",
+    "image_urls": [],
+    "num_of_courts": 4,
+    "price_range": "Liên hệ",
+    "tags": [
+      "Q. Cẩm Lệ"
+    ],
+    "created_at": "2026-04-23T10:00:00Z"
   }
 ]
