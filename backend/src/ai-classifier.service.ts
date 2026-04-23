@@ -82,8 +82,11 @@ ${commentContext ? `BÌNH LUẬN ĐẦU TIÊN:\n${commentContext}` : ''}
 
 Hãy trích xuất thông tin có cấu trúc từ bài viết trên. Nếu không có thông tin, để null.
 Quy tắc quan trọng:
-1. "pass sân", "nhượng sân" -> post_type = "cho_thue_san"
-2. Tên sân có thể là tiếng Anh hoặc lóng (vd: Pin Pon, King Sport, Kiến Trúc...), đừng đánh rác nếu thấy tên lạ.
+1. "pass sân", "nhượng sân" -> post_type = "cho_thue_san".
+2. TỪ LÓNG THƯỜNG GẶP:
+   - "VL", "vl" = vãng lai -> post_type = "vang_lai".
+   - Tên sân thường viết tắt/viết liền: "pinpon", "pp", "pin pon" = Sân Pin Pon; "ktruc" = Sân Kiến Trúc; "tls", "tl" = Tiên Sơn...
+   Hãy NỖ LỰC TỐI ĐA suy luận tên sân từ từ lóng/viết tắt, tuyệt đối đừng để null nếu bài có nhắc tới địa điểm.
 3. Quy tắc level_required: "yeu"=yếu, "tb-"=trung bình yếu, "tb"=trung bình, "tb+"=trung bình khá, "kha"=khá, "gioi"=giỏi.
 Trả về JSON hợp lệ theo schema đã định nghĩa.
 `.trim();
