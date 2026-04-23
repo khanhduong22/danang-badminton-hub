@@ -14,10 +14,14 @@ RUN echo 'DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?schema=pub
 RUN npx prisma generate
 RUN npm run build
 
+# Xóa toàn bộ devDependencies (như typescript, nest CLI, jest) để giảm dung lượng node_modules
+RUN npm prune --omit=dev
+
 # ─── Stage 2: Production ──────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS production
 
-# System dependencies for Playwright Chromium
+# Cài đặt system dependencies cho Playwright Chromium.
+# Đặt bước này lên CÙNG của production để TẬN DỤNG CACHE TỐI ĐA (vì hiếm khi thay đổi apt packages)
 RUN apt-get update && apt-get install -y \
     ca-certificates fonts-liberation fonts-noto-cjk \
     libasound2 libatk-bridge2.0-0 libatk1.0-0 libc6 libcairo2 \
@@ -30,14 +34,18 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /usr/src/app
 
-# Copy compiled artifacts from builder
-COPY --from=builder /usr/src/app/dist ./dist
-COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY --from=builder /usr/src/app/prisma ./prisma
 COPY package*.json ./
+# Copy node_modules ĐÃ ĐƯỢC LỌC (chỉ còn thư viện production) từ builder
+COPY --from=builder /usr/src/app/node_modules ./node_modules
 
-# Install Playwright Chromium browser only (no system Chrome needed)
+# Cài đặt Playwright Chromium (Cực nặng ~500MB).
+# Đặt TRƯỚC khi copy source code để đảm bảo KHÔNG BAO GIỜ bị tải lại mỗi khi bác sửa code!
 RUN npx playwright install chromium --with-deps
+
+# CUỐI CÙNG mới copy thư mục dist và prisma.
+# Bất kỳ khi nào bác sửa code ở thư mục src/, Docker CHỈ build lại duy nhất layer này (vài MB).
+COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/prisma ./prisma
 
 # Session storage directory (mounted as Docker volume)
 RUN mkdir -p storage
