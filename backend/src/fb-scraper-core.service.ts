@@ -91,33 +91,32 @@ export class FbScraperCoreService {
         comments: [],
       };
 
-      // Restrict all extraction to the first article (the main post) to avoid sidebars and ads
-      const article = document.querySelector('div[role="article"]');
-      if (article) {
-        const postBody = article.querySelector('div[data-testid="post_message"]');
-        if (postBody) {
-          result.postText = (postBody as HTMLElement).innerText?.trim() || '';
-        }
+      // Restrict extraction to the main post container to avoid sidebars and ads
+      const container = document.querySelector('div[role="article"]') || document.querySelector('div[role="main"]') || document;
+      
+      const postBody = container.querySelector('div[data-testid="post_message"]');
+      if (postBody) {
+        result.postText = (postBody as HTMLElement).innerText?.trim() || '';
+      }
 
-        if (!result.postText) {
-          const candidates = Array.from(article.querySelectorAll('div[dir="auto"]'));
-          const texts = candidates
-            .map((el) => (el as HTMLElement).innerText?.trim() || '')
-            .filter((t) => t.length > 30 && !t.includes('Facebook') && t.length < 3000);
-          result.postText = texts[0] || '';
-        }
+      if (!result.postText) {
+        const candidates = Array.from(container.querySelectorAll('div[dir="auto"]'));
+        const texts = candidates
+          .map((el) => (el as HTMLElement).innerText?.trim() || '')
+          .filter((t) => t.length > 20 && !t.includes('Facebook') && !t.includes('AWS Summit') && t.length < 3000);
+        result.postText = texts[0] || '';
+      }
 
-        // Clean up text
-        if (result.postText) {
-          result.postText = result.postText.replace(/\.\.\.\s*Xem thêm/g, '').replace(/Xem thêm/g, '').trim();
-        }
+      // Clean up text
+      if (result.postText) {
+        result.postText = result.postText.replace(/\.\.\.\s*Xem thêm/g, '').replace(/Xem thêm/g, '').trim();
+      }
 
-        // Author
-        const authorLink = article.querySelector('h2 a, strong a, span a[role="link"]') as HTMLAnchorElement | null;
-        if (authorLink) {
-          result.authorName = authorLink.innerText.trim();
-          result.authorUrl = authorLink.href;
-        }
+      // Author
+      const authorLink = container.querySelector('h2 a, strong a, span a[role="link"]') as HTMLAnchorElement | null;
+      if (authorLink) {
+        result.authorName = authorLink.innerText.trim();
+        result.authorUrl = authorLink.href;
       }
 
       // Timestamp: abbr or time element
