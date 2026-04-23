@@ -83,11 +83,78 @@ ${commentContext ? `BÌNH LUẬN ĐẦU TIÊN:\n${commentContext}` : ''}
 Hãy trích xuất thông tin có cấu trúc từ bài viết trên. Nếu không có thông tin, để null.
 Quy tắc quan trọng:
 1. "pass sân", "nhượng sân" -> post_type = "cho_thue_san".
-2. TỪ LÓNG THƯỜNG GẶP:
-   - "VL", "vl" = vãng lai -> post_type = "vang_lai".
-   - Tên sân thường viết tắt/viết liền: "pinpon", "pp", "pin pon" = Sân Pin Pon; "ktruc" = Sân Kiến Trúc; "tls", "tl" = Tiên Sơn...
-   Hãy NỖ LỰC TỐI ĐA suy luận tên sân từ từ lóng/viết tắt, tuyệt đối đừng để null nếu bài có nhắc tới địa điểm.
+2. "VL", "vl" = vãng lai -> post_type = "vang_lai".
 3. Quy tắc level_required: "yeu"=yếu, "tb-"=trung bình yếu, "tb"=trung bình, "tb+"=trung bình khá, "kha"=khá, "gioi"=giỏi.
+
+TỪ LÓNG / VIẾT TẮT TÊN SÂN:
+- "pinpon", "pp", "pin pon" = Sân PinPon
+- "ktruc", "kiến trúc" = Sân Kiến Trúc
+- "tls", "tl" = Cung Tiên Sơn
+- "index", "sân số 6", "số 6" + (Trịnh Công Sơn/Ngũ Hành Sơn/Cẩm Lệ) = Sân INDEXSport + khu vực đó
+- "army" = Sân ARMY Badminton
+- "icon" = Sân ICON Badminton
+- "ace" = Sân ACE Badminton
+- "arena" = Sân Arena.01
+- "hunter" = Sân Hunter
+- "long" = Sân LONG Badminton
+- "t&t", "tnt" = Sân T&T Badminton
+
+DANH SÁCH SÂN ĐÃ BIẾT (chuẩn hóa court_name về tên đúng):
+- Cung Tiên Sơn (01A Phan Đăng Lưu, Hải Châu)
+- Sân Quân khu 5 (07 Duy Tân, Hải Châu)
+- Sân Phan Châu Trinh (405 Phan Châu Trinh, Hải Châu)
+- TT Văn hóa Thể thao Q. Thanh Khê (21 Hồ Tương, Thanh Khê)
+- Sân Tin Sport (107 Trường Chinh, Thanh Khê)
+- Sân Kỳ Đồng (121 Kỳ Đồng, Thanh Khê)
+- TT Văn hóa Thể thao Q. Sơn Trà (01 Trần Quang Diệu, Sơn Trà)
+- Sân PinPon (KCN An Đồn, Sơn Trà)
+- Sân Aurora (KCN An Đồn, Sơn Trà)
+- Sân Cầu Lông Win Win (642 Tôn Đức Thắng, Liên Chiểu)
+- TT Huấn luyện & Đào tạo TDTT (190 Đường Loan, Cẩm Lệ)
+- Sân Đỗ Ngọc Du (34 Đỗ Ngọc Du, Thanh Khê)
+- Sân trường ĐH TDTT TP. Đà Nẵng (44 Dũng Sĩ Thanh Khê, Thanh Khê)
+- Sân cầu lông UK Academy (Tôn Thất Đạm, Thanh Khê)
+- Sân INDEXSport Ngũ Hành Sơn (81C Lê Văn Hiến, Ngũ Hành Sơn)
+- Sân INDEXSport Trịnh Công Sơn (12 Trịnh Công Sơn, Thanh Khê)
+- Sân INDEXSPORT Cẩm Lệ (448 Mẹ Thứ, Cẩm Lệ)
+- Sân Phúc Đăng (39 Thanh Lương 19, Cẩm Lệ)
+- Sân Kingsport (85 Tôn Thất Dương Kỵ, Cẩm Lệ)
+- Sân BetaEra (275 Nguyễn Tri Phương, Hải Châu)
+- Sân Trọng Nghĩa 1 (458 Nguyễn Tri Phương, Hải Châu)
+- TT Thể thao Hải Châu (49 Tân An 3, Hải Châu)
+- Sân 04 Lê Duẩn (04 Lê Duẩn, Hải Châu)
+- Sân Đa Phước (KĐT Đa Phước, Hải Châu)
+- Sân Bưu Điện (50B Nguyễn Du, Hải Châu)
+- Sân Trọng Nghĩa 2 (194 Bế Văn Đàn, Thanh Khê)
+- Sân CĐ Thương Mại (45 Dũng Sĩ Thanh Khê, Thanh Khê)
+- CLB An Khê (178 Nguyễn Đình Tựu, Thanh Khê)
+- Sân ACE Badminton (257 Dũng Sĩ Thanh Khê, Thanh Khê)
+- Sân Wings / CĐ Nghề Đà Nẵng (132 Tô Hiến Thành, Sơn Trà)
+- Sân An Đồn 5.5 (KCN An Đồn, Sơn Trà)
+- Sân Hồ Nghinh (Sơn Trà)
+- Sân Arena.01 (40 Hoàng Văn Thái, Liên Chiểu)
+- Sân Hunter (459 Tôn Đức Thắng, Liên Chiểu)
+- Sân AlphaEra (Cạnh Mikazuki, Liên Chiểu)
+- Sân Làng Hòa Mỹ (K120 Nguyễn Huy Tưởng, Liên Chiểu)
+- Sân Min Tom (108 Hoàng Minh Thảo, Liên Chiểu)
+- Sân Hiếu Con (172-182 Đỗ Quỳ, Cẩm Lệ)
+- Nhà Thi Đấu Hòa Xuân (01A Dương Loan, Cẩm Lệ)
+- Sân Hoa Cam (02 Trường Sơn, Cẩm Lệ)
+- Sân Dương Gia Hòa Xuân (207 Quách Thị Trang, Cẩm Lệ)
+- Sân Mỹ An (382 Ngũ Hành Sơn, Ngũ Hành Sơn)
+- TT Văn hóa Thể thao Q. Ngũ Hành Sơn (01B Trần Văn Đán, Ngũ Hành Sơn)
+- Sân Thiên Vũ (Hòa Quý, Ngũ Hành Sơn)
+- Sân LONG Badminton (Hòa Quý, Ngũ Hành Sơn)
+- Sân T&T Badminton (534 Phạm Hùng, Hòa Vang)
+- Sân Lâm Gia (17 Bàu Năng, Liên Chiểu)
+- Sân ARMY Badminton (Phạm Ngọc Mậu, Thanh Khê)
+- Sân ICON Badminton (122 Tôn Đản, Cẩm Lệ)
+
+QUAN TRỌNG: Khi trích xuất court_name, hãy CHUẨN HÓA về đúng tên từ danh sách trên.
+Ví dụ: "sân số 6 Trịnh Công Sơn" → "Sân INDEXSport Trịnh Công Sơn", "sân index" → tùy theo địa chỉ, "army" → "Sân ARMY Badminton".
+Nếu không chắc chắn về tên chính xác, hãy chọn tên gần nhất theo địa chỉ.
+
+Hãy NỖ LỰC TỐI ĐA suy luận tên sân từ từ lóng/viết tắt, tuyệt đối đừng để court_name null nếu bài có nhắc tới địa điểm.
 Trả về JSON hợp lệ theo schema đã định nghĩa.
 `.trim();
 
