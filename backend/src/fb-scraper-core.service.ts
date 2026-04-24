@@ -56,19 +56,22 @@ export class FbScraperCoreService {
         await page.goto(feedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await this.removeLoginOverlay(page);
 
-        // Scroll down a little first so FB starts loading posts
-        await page.evaluate(() => window.scrollBy(0, 600));
+        // Wait for group feed to hydrate (FB renders lazily after React mount)
+        await this.sleep(2000);
+        await page.evaluate(() => window.scrollBy(0, 400));
+        await this.sleep(1000);
+        await page.evaluate(() => window.scrollBy(0, window.innerHeight));
         await this.sleep(1500);
         await page.evaluate(() => window.scrollBy(0, window.innerHeight));
-        await this.sleep(1000);
+        await this.sleep(1500);
 
-        // Now wait for post permalink/posts links to appear (20s)
+        // Wait for post links — FB uses /permalink/ or /posts/ in hrefs
         await page
-          .waitForSelector('a[href*="/permalink/"], a[href*="/posts/"]', { timeout: 20000 })
+          .waitForSelector('a[href*="/permalink/"], a[href*="/posts/"]', { timeout: 25000 })
           .catch(() => this.logger.warn(`Phase 1 attempt ${attempt}: feed selector timeout`));
 
         // Continue scrolling to load more posts
-        const SCROLL_ROUNDS = 10;
+        const SCROLL_ROUNDS = 8;
         for (let i = 0; i < SCROLL_ROUNDS; i++) {
           await page.evaluate(() => window.scrollBy(0, window.innerHeight * 2));
           await this.sleep(700 + Math.random() * 400);
