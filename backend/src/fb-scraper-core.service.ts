@@ -48,8 +48,9 @@ export class FbScraperCoreService {
     groupId: string,
     retries = 2,
   ): Promise<{ groupId: string; postId: string; postUrl: string }[]> {
-    const feedUrl = `https://www.facebook.com/groups/${groupId}?sorting_setting=CHRONOLOGICAL`;
-    this.logger.log(`📄 Phase 1: cào feed group ${groupId} (Mới nhất)`);
+    // Try plain URL first — FB sometimes blocks feed render with ?sorting_setting param in headless
+    const feedUrl = `https://www.facebook.com/groups/${groupId}`;
+    this.logger.log(`📄 Phase 1: cào feed group ${groupId}`);
 
     for (let attempt = 1; attempt <= retries + 1; attempt++) {
       try {
