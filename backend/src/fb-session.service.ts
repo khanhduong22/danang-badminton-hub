@@ -10,49 +10,73 @@ export class FbSessionService {
   private readonly logger = new Logger(FbSessionService.name);
 
   /**
-   * Ensures a valid FB session in `context`.
-   * 1. Try loading saved session from disk
-   * 2. If still not logged in → auto-login with FB_EMAIL / FB_PASSWORD on mbasic
-   * 3. Fallback to FB_COOKIE env var
-   * Returns true if session is valid.
+   * Load session into context using this priority:
+   * 1. Saved session file (refreshed cookies from previous runs)
+   * 2. FB_COOKIE env var (manually pasted by user)
+   *
+   * NO auto-login. We never type credentials programmatically to avoid checkpoint.
+   * Returns true if the loaded session is valid (not redirected to /login).
    */
   async ensureSession(context: BrowserContext, page: Page, testGroupId: string): Promise<boolean> {
-    // 1. Load saved session
+    // 1. Try saved session file first (has freshest cookies)
     if (fs.existsSync(SESSION_FILE)) {
       try {
         const saved = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
         await context.addCookies(saved);
-        this.logger.log('📂 Loaded saved session from disk');
+        this.logger.log(`📂 Loaded saved session (${saved.length} cookies)`);
+        if (await this.checkSession(page, testGroupId)) {
+          this.logger.log('✅ Saved session valid');
+          return true;
+        }
+        this.logger.warn('⚠️ Saved session expired, falling back to FB_COOKIE env');
       } catch {
-        this.logger.warn('Could not load session file, will re-login');
+        this.logger.warn('Could not load session file, falling back to FB_COOKIE env');
       }
     }
 
-    // 2. Check if session is valid
-    if (await this.checkSession(page, testGroupId)) {
-      this.logger.log('✅ Session valid');
-      return true;
+    // 2. Inject from FB_COOKIE env var
+    const rawCookie = process.env.FB_COOKIE;
+    if (!rawCookie) {
+      this.logger.error('❌ No FB_COOKIE env var set. Cannot proceed.');
+      return false;
     }
 
-    // 3. Try auto-login with credentials
-    const email = process.env.FB_EMAIL;
-    const password = process.env.FB_PASSWORD;
-    if (email && password) {
-      this.logger.log('🔑 Đang tự đăng nhập bằng FB_EMAIL/FB_PASSWORD...');
-      const success = await this.autoLogin(page, email, password);
-      if (success) {
-        this.logger.log('✅ Auto-login thành công!');
-        await this.saveSession(context);
-        return true;
-      } else {
-        this.logger.error('❌ Auto-login thất bại');
-      }
-    }
+    await this.injectCookies(context, rawCookie);
+    this.logger.log('🍪 Injected cookies from FB_COOKIE env');
 
-    // 4. Try manual cookie fallback
-    this.logger.warn('⚠️ Dùng FB_COOKIE env (manual fallback)...');
-    await this.injectCookies(context, process.env.FB_COOKIE || '');
-    return await this.checkSession(page, testGroupId);
+    // Accept cookie consent banner if shown
+    await this.acceptCookieConsent(page);
+
+    const valid = await this.checkSession(page, testGroupId);
+    if (valid) {
+      this.logger.log('✅ FB_COOKIE session valid');
+    } else {
+      this.logger.error('❌ FB_COOKIE is invalid or expired. Please refresh FB_COOKIE.');
+    }
+    return valid;
+  }
+
+  /**
+   * Heartbeat: visit FB home to keep session alive without doing anything suspicious.
+   * Call this every 6-12h. FB renews session tokens on every request,
+   * so the refreshed cookies extend the session by another 90 days.
+   */
+  async heartbeat(context: BrowserContext, page: Page): Promise<void> {
+    try {
+      this.logger.log('💓 Session heartbeat: visiting FB home...');
+      await page.goto('https://www.facebook.com/', {
+        waitUntil: 'domcontentloaded',
+        timeout: 20000,
+      });
+      await this.acceptCookieConsent(page);
+      // Gentle scroll to simulate human activity
+      await page.evaluate(() => window.scrollBy(0, 300));
+      await page.waitForTimeout(2000);
+      await page.evaluate(() => window.scrollBy(0, 300));
+      this.logger.log('💓 Heartbeat done');
+    } catch (err) {
+      this.logger.warn(`Heartbeat failed: ${err}`);
+    }
   }
 
   async checkSession(page: Page, groupId: string): Promise<boolean> {
@@ -61,6 +85,7 @@ export class FbSessionService {
         waitUntil: 'domcontentloaded',
         timeout: 20000,
       });
+      await this.acceptCookieConsent(page);
       const url = page.url();
       return !url.includes('/login') && !url.includes('/checkpoint');
     } catch {
@@ -101,55 +126,26 @@ export class FbSessionService {
     await context.addCookies(cookies);
   }
 
-  private async clickCookieConsent(page: Page) {
+  private async acceptCookieConsent(page: Page): Promise<void> {
     try {
-      const consentBtn = page.locator('button[data-cookiebanner="accept_button"]');
-      if ((await consentBtn.count()) > 0) {
-        this.logger.log('🍪 Tìm thấy trang Cookie Consent, đang click bỏ qua...');
-        await consentBtn.first().click();
-        await page.waitForTimeout(3000);
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  private async autoLogin(page: Page, email: string, pass: string): Promise<boolean> {
-    try {
-      await page.goto('https://mbasic.facebook.com/', {
-        waitUntil: 'domcontentloaded',
-        timeout: 30000,
-      });
-
-      await this.clickCookieConsent(page);
-
-      const emailInput = page.locator('input[name="email"]');
-      if ((await emailInput.count()) === 0) {
-        return true; // Already logged in
-      }
-
-      await emailInput.fill(email);
-      await page.locator('input[name="pass"]').fill(pass);
-
-      // Press Enter to submit form instead of clicking submit button
-      // to bypass Facebook's anti-bot div wrappers
-      await page.keyboard.press('Enter');
-      await page.waitForLoadState('domcontentloaded', { timeout: 30000 });
-
-      // Save device if prompted
-      if (page.url().includes('save-device')) {
-        const saveBtn = page.locator('input[value="OK"]');
-        if ((await saveBtn.count()) > 0) {
-          await saveBtn.first().click();
-          await page.waitForLoadState('domcontentloaded');
+      // FB shows cookie consent on fresh sessions from new IPs
+      const selectors = [
+        'button[data-cookiebanner="accept_button"]',
+        'button[title="Allow all cookies"]',
+        'button[title="Cho phép tất cả cookie"]',
+        '[aria-label="Allow all cookies"]',
+      ];
+      for (const sel of selectors) {
+        const btn = page.locator(sel);
+        if ((await btn.count()) > 0) {
+          this.logger.log('🍪 Cookie consent banner found, accepting...');
+          await btn.first().click();
+          await page.waitForTimeout(2000);
+          return;
         }
       }
-
-      const currentUrl = page.url();
-      return !currentUrl.includes('login') && !currentUrl.includes('checkpoint');
-    } catch (err) {
-      this.logger.error('autoLogin error:', err);
-      return false;
+    } catch {
+      // Ignore — consent may not appear
     }
   }
 }

@@ -59,6 +59,27 @@ export class CrawlerService {
     }
   }
 
+  /** Every 6h: warm up FB session so cookies never expire from inactivity */
+  @Cron('0 */6 * * *')
+  async handleSessionHeartbeat() {
+    this.logger.log('💓 Kích hoạt heartbeat giữ session FB...');
+    const { browser, context, page } = await this.launchBrowser();
+    try {
+      const loaded = await this.fbSession.ensureSession(context, page, FB_GROUP_IDS[0]);
+      if (loaded) {
+        await this.fbSession.heartbeat(context, page);
+        await this.fbSession.saveSession(context);
+        this.logger.log('✅ Session heartbeat done, cookies refreshed');
+      } else {
+        this.logger.error('❌ Heartbeat failed — FB_COOKIE may be expired, please refresh it');
+      }
+    } catch (err) {
+      this.logger.error('Heartbeat error:', err);
+    } finally {
+      await browser.close();
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Main entry point
   // -------------------------------------------------------------------------
@@ -98,9 +119,12 @@ export class CrawlerService {
       const page = await context.newPage();
       await this.fbScraper.injectStealthScripts(page);
 
-      // --- Session bootstrap (Bypassed) ---
-      // Removed fbSession.ensureSession to avoid account lockout
-      this.logger.log('Bypassing Facebook login, proceeding as anonymous...');
+      // --- Session bootstrap via cookie (no auto-login) ---
+      const loggedIn = await this.fbSession.ensureSession(context, page, FB_GROUP_IDS[0]);
+      if (!loggedIn) {
+        this.logger.error('💥 Session invalid. Update FB_COOKIE env and redeploy.');
+        return;
+      }
 
       // Phase 1: Collect post URLs across all configured groups
       const allPostUrls: { groupId: string; postId: string; postUrl: string }[] = [];
@@ -147,7 +171,8 @@ export class CrawlerService {
         await this.fbScraper.sleep(POST_DELAY_MS);
       }
 
-      // Session saving bypassed
+      // Save refreshed session cookies for next run
+      await this.fbSession.saveSession(context);
 
       this.logger.log(`✅ Cào xong: ${toProcess.length} bài mới nhét vào DB`);
     } catch (err) {
@@ -185,7 +210,12 @@ export class CrawlerService {
       const page = await context.newPage();
 
       // Session bootstrap bypassed
-      this.logger.log('Bypassing Facebook login for recheck...');
+      this.logger.log('Loading session for recheck...');
+      const loggedIn = await this.fbSession.ensureSession(context, page, FB_GROUP_IDS[0]);
+      if (!loggedIn) {
+        this.logger.error('💥 Session invalid for recheck.');
+        return;
+      }
 
       let closedCount = 0;
       // Slang dictionary for closed badminton matches
@@ -269,6 +299,28 @@ export class CrawlerService {
     if (hourMatch) now.setHours(now.getHours() - parseInt(hourMatch[1]));
     if (minMatch) now.setMinutes(now.getMinutes() - parseInt(minMatch[1]));
     return now;
+  }
+
+  private async launchBrowser() {
+    const browser = await chromium.launch({
+      headless: true,
+      executablePath: process.env.CHROME_BIN || undefined,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+      ],
+    });
+    const context = await browser.newContext({
+      userAgent: this.fbScraper.getRandomUserAgent(),
+      locale: 'vi-VN',
+      viewport: { width: 1366, height: 768 },
+      timezoneId: 'Asia/Ho_Chi_Minh',
+    });
+    const page = await context.newPage();
+    await this.fbScraper.injectStealthScripts(page);
+    return { browser, context, page };
   }
 
   private sleep(ms: number): Promise<void> {
