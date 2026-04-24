@@ -52,6 +52,7 @@ export default async function RawPostsPage() {
                 </td>
               </tr>
             ) : (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               posts.map((post: any) => (
                 <tr key={post.id} className="border-b hover:bg-gray-50/50 transition-colors">
                   <td className="px-4 py-3 font-medium whitespace-nowrap">
