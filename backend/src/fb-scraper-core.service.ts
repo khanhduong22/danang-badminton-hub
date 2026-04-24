@@ -56,10 +56,10 @@ export class FbScraperCoreService {
         await page.goto(feedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await this.removeLoginOverlay(page);
 
-        // Wait for actual feed content to appear
+        // Wait up to 15s for the feed to materialize (FB renders post links lazily)
         await page
-          .waitForSelector('div[role="feed"], div[role="main"]', { timeout: 15000 })
-          .catch(() => {});
+          .waitForSelector('div[role="feed"] a[href*="/groups/"], div[role="main"] a[href*="/groups/"]', { timeout: 15000 })
+          .catch(() => this.logger.warn(`Phase 1 attempt ${attempt}: feed selector timeout`));
 
         // Scroll gradually to trigger lazy-loading, re-check overlay every 3 rounds
         const SCROLL_ROUNDS = 12;
@@ -90,10 +90,19 @@ export class FbScraperCoreService {
           return postLinks.map((p) => ({ groupId, ...p }));
         }
 
+        // Diagnostic: log what FB actually showed us
+        const pageSnap = await page.evaluate(() => ({
+          url: document.location.href,
+          title: document.title,
+          bodySnippet: document.body?.innerText?.substring(0, 200).replace(/\n/g, ' ') || '',
+          hasFeed: !!document.querySelector('div[role="feed"]'),
+          hasMain: !!document.querySelector('div[role="main"]'),
+          hasLoginForm: !!document.querySelector('form#login_popup_cta_form, input[name="email"]'),
+        }));
         this.logger.warn(
-          `⚠️ Phase 1 attempt ${attempt}: 0 URLs found for group ${groupId}. ${attempt <= retries ? 'Retrying...' : 'Giving up.'}`,
+          `⚠️ Phase 1 attempt ${attempt}: 0 URLs — url=${pageSnap.url} | hasFeed=${pageSnap.hasFeed} | hasMain=${pageSnap.hasMain} | hasLogin=${pageSnap.hasLoginForm} | body="${pageSnap.bodySnippet}"`,
         );
-        await this.sleep(3000);
+        if (attempt <= retries) await this.sleep(3000);
       } catch (err) {
         this.logger.warn(`Phase 1 attempt ${attempt} error for group ${groupId}: ${err}`);
         if (attempt > retries) break;
