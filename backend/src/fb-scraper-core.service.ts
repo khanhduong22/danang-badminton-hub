@@ -56,16 +56,22 @@ export class FbScraperCoreService {
         await page.goto(feedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await this.removeLoginOverlay(page);
 
-        // Wait up to 15s for the feed to materialize (FB renders post links lazily)
+        // Scroll down a little first so FB starts loading posts
+        await page.evaluate(() => window.scrollBy(0, 600));
+        await this.sleep(1500);
+        await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+        await this.sleep(1000);
+
+        // Now wait for post permalink/posts links to appear (20s)
         await page
-          .waitForSelector('div[role="feed"] a[href*="/groups/"], div[role="main"] a[href*="/groups/"]', { timeout: 15000 })
+          .waitForSelector('a[href*="/permalink/"], a[href*="/posts/"]', { timeout: 20000 })
           .catch(() => this.logger.warn(`Phase 1 attempt ${attempt}: feed selector timeout`));
 
-        // Scroll gradually to trigger lazy-loading, re-check overlay every 3 rounds
-        const SCROLL_ROUNDS = 12;
+        // Continue scrolling to load more posts
+        const SCROLL_ROUNDS = 10;
         for (let i = 0; i < SCROLL_ROUNDS; i++) {
           await page.evaluate(() => window.scrollBy(0, window.innerHeight * 2));
-          await this.sleep(800 + Math.random() * 400); // add jitter
+          await this.sleep(700 + Math.random() * 400);
           if (i % 3 === 0) await this.removeLoginOverlay(page);
         }
 
