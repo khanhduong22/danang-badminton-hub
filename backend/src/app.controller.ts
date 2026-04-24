@@ -32,6 +32,10 @@ export class AppController {
     if (type) filter.push(`post_type = "${type}"`);
     if (active !== 'false') filter.push('is_active = true');
 
+    // Filter out posts older than 3 hours ago (to hide yesterday's posts)
+    const threeHoursAgo = Date.now() - 3 * 60 * 60 * 1000;
+    filter.push(`(start_time >= ${threeHoursAgo} OR start_time IS EMPTY)`);
+
     try {
       const response = await this.meili.index('posts').search(q, {
         limit: 30,
@@ -65,9 +69,23 @@ export class AppController {
         is_active: active === 'false' ? undefined : true,
         ...(type ? { post_type: type } : {}),
         ...(level ? { level_required: level } : {}),
+        OR: [
+          { start_time: null },
+          { end_time: { gte: new Date() } },
+          { end_time: null, start_time: { gte: new Date(Date.now() - 3 * 60 * 60 * 1000) } },
+        ],
       },
       orderBy: { start_time: 'asc' },
       include: { court: true },
+    });
+  }
+
+  /** List raw scraped content from Facebook */
+  @Get('raw-posts')
+  async getRawPosts() {
+    return this.prisma.fbRawContent.findMany({
+      orderBy: { scraped_at: 'desc' },
+      take: 100,
     });
   }
 

@@ -123,7 +123,10 @@ export class CrawlerService {
       // Phase 2: Scrape each new post (rate-limited)
       const toProcess = newPosts.slice(0, MAX_POSTS_PER_RUN);
       for (const post of toProcess) {
-        const scraped = await this.fbScraper.scrapePostDetail(page, post.postUrl, post.postId);
+        const postPage = await context.newPage();
+        const scraped = await this.fbScraper.scrapePostDetail(postPage, post.postUrl, post.postId);
+        await postPage.close();
+
         if (scraped) {
           try {
             await this.prisma.fbRawContent.create({

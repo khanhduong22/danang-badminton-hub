@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity, Map, Users, ShoppingBag } from "lucide-react";
+import { Activity, Map, Users, ShoppingBag, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
@@ -43,6 +43,13 @@ export function Navbar() {
           >
             <ShoppingBag className="h-4 w-4" />
             <span className="hidden sm:inline">Chợ Đồ</span>
+          </Link>
+          <Link
+            href="/raw-posts"
+            className="transition-colors hover:text-primary flex items-center gap-2 text-muted-foreground"
+          >
+            <Database className="h-4 w-4" />
+            <span className="hidden sm:inline">Raw Posts</span>
           </Link>
         </nav>
         

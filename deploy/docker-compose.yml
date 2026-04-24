@@ -13,6 +13,11 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   meilisearch:
     image: getmeili/meilisearch:v1.13
@@ -25,6 +30,11 @@ services:
     volumes:
       - meili-data:/meili_data
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     build: ../backend
