@@ -84,7 +84,7 @@ async function main() {
 
   const page = await context.newPage();
   let updated = 0;
-  let failed: string[] = [];
+  const failed: string[] = [];
 
   for (const court of courts) {
     process.stdout.write(`Geocoding ${court.id}: ${court.name}... `);

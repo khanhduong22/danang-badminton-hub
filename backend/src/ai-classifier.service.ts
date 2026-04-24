@@ -242,11 +242,22 @@ Trả về JSON hợp lệ theo schema đã định nghĩa.
         return;
       }
 
+      let courtId: number | null = null;
+      if (ai.court_name) {
+        const allCourts = await this.prisma.court.findMany();
+        const match = allCourts.find(c => 
+          ai.court_name?.toLowerCase().includes(c.name.toLowerCase()) || 
+          c.name.toLowerCase().includes(ai.court_name?.toLowerCase() || '')
+        );
+        if (match) courtId = match.id;
+      }
+
       // Save structured post
       const created = await this.prisma.wanderingPost.create({
         data: {
           raw_content_id: raw.id,
           post_type: ai.post_type,
+          court_id: courtId,
           court_name: ai.court_name,
           address_raw: ai.address || null,
           start_time: ai.start_time ? new Date(ai.start_time) : null,

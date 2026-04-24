@@ -21,9 +21,9 @@ export function Footer() {
           </div>
           <div className="flex flex-col gap-3">
             <h3 className="font-semibold text-foreground">Tính năng</h3>
-            <Link href="#radar" className="text-sm text-muted-foreground hover:text-primary transition-colors">Bản đồ sân cầu lông</Link>
-            <Link href="#matchmaking" className="text-sm text-muted-foreground hover:text-primary transition-colors">Trạm tìm vãng lai</Link>
-            <Link href="#gear" className="text-sm text-muted-foreground hover:text-primary transition-colors">Chợ đồ cầu lông</Link>
+            <Link href="/vang-lai" className="text-sm text-muted-foreground hover:text-primary transition-colors">Tìm Vãng Lai</Link>
+            <Link href="/pass-san" className="text-sm text-muted-foreground hover:text-primary transition-colors">Pass Sân</Link>
+            <Link href="/cho-do" className="text-sm text-muted-foreground hover:text-primary transition-colors">Chợ đồ cầu lông</Link>
           </div>
           <div className="flex flex-col gap-3">
             <h3 className="font-semibold text-foreground">Liên hệ</h3>

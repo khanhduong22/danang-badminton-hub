@@ -2,7 +2,12 @@
 
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
+
+interface Court {
+  id: number;
+  name: string;
+}
 
 const LEVELS = [
   { value: "", label: "Mọi trình độ" },
@@ -25,6 +30,14 @@ export default function SearchBar() {
     !!(searchParams.get("level") || searchParams.get("area") || searchParams.get("court"))
   );
   const [isPending, startTransition] = useTransition();
+  const [courts, setCourts] = useState<Court[]>([]);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/courts`)
+      .then((res) => res.json())
+      .then((data) => setCourts(data))
+      .catch((err) => console.error("Failed to load courts", err));
+  }, []);
 
   function buildUrl() {
     const params = new URLSearchParams();
@@ -133,15 +146,11 @@ export default function SearchBar() {
                 className="text-sm border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 py-1.5 px-3 bg-white outline-none cursor-pointer"
               >
                 <option value="">Mọi sân</option>
-                <option value="Tiên Sơn">Sân Tiên Sơn</option>
-                <option value="Tuyên Sơn">Sân Tuyên Sơn</option>
-                <option value="Win Win">Sân Win Win</option>
-                <option value="Kỳ Đồng">Sân Kỳ Đồng</option>
-                <option value="Đa Phước">Sân Đa Phước</option>
-                <option value="Bách Khoa">Sân Bách Khoa</option>
-                <option value="Kiến Trúc">Sân Kiến Trúc</option>
-                <option value="Vạn Thắng">Sân Vạn Thắng</option>
-                <option value="Quân Khu 5">Sân Quân Khu 5</option>
+                {courts.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
               </select>
             </div>
 

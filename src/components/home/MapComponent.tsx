@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import mockCourts from "@/data/mockCourts.json";
 
 // Fix missing marker icons in leaflet with Next.js/Webpack
 const icon = L.icon({
@@ -21,11 +20,19 @@ const icon = L.icon({
 export default function MapComponent() {
   const [mounted, setMounted] = useState(false);
 
+   
+  const [courts, setCourts] = useState<any[]>([]);
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/courts`)
+      .then((res) => res.json())
+      .then((data) => setCourts(data))
+      .catch((err) => console.error(err));
   }, []);
 
-  if (!mounted) {
+  if (!mounted || courts.length === 0) {
     return <div className="w-full h-full min-h-[400px] lg:min-h-[600px] bg-emerald-50 rounded-2xl animate-pulse"></div>;
   }
 
@@ -44,11 +51,11 @@ export default function MapComponent() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {mockCourts.map((court) => (
-          court.latitude && court.longitude ? (
+        {courts.map((court) => (
+          court.lat && court.lng ? (
             <Marker 
               key={court.id} 
-              position={[court.latitude as number, court.longitude as number]}
+              position={[court.lat, court.lng]}
               icon={icon}
             >
               <Popup>
@@ -59,7 +66,7 @@ export default function MapComponent() {
                     SĐT: {court.contact_number || "Liên hệ trực tiếp"}
                   </p>
                   <a 
-                    href={court.maps_url} 
+                    href={court.maps_url || `https://www.google.com/maps?q=${court.lat},${court.lng}`} 
                     target="_blank" 
                     rel="noreferrer" 
                     className="mt-2 block w-full text-center bg-primary text-primary-foreground text-xs py-1.5 rounded"

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Activity, Map, Users, ShoppingBag, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -38,7 +40,7 @@ export function Navbar() {
             <span className="hidden sm:inline">Pass Sân</span>
           </Link>
           <Link
-            href="/#gear"
+            href="/cho-do"
             className="transition-colors hover:text-primary flex items-center gap-2 text-muted-foreground"
           >
             <ShoppingBag className="h-4 w-4" />
@@ -54,7 +56,10 @@ export function Navbar() {
         </nav>
         
         <div className="flex items-center gap-4">
-          <button className="h-9 px-4 py-2 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90">
+          <button 
+            onClick={() => alert("Tính năng Đăng nhập đang được phát triển. Mong bạn thông cảm nhé!")}
+            className="h-9 px-4 py-2 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90"
+          >
             Đăng nhập
           </button>
         </div>

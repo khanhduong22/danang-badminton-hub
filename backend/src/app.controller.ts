@@ -45,7 +45,7 @@ export class AppController {
 
       if (response.hits.length === 0) return [];
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const ids = response.hits.map((h: any) => h.id as number);
       const posts = await this.prisma.wanderingPost.findMany({
         where: { id: { in: ids } },
