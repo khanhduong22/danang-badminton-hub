@@ -79,15 +79,17 @@ export class FbSessionService {
     }
   }
 
-  async checkSession(page: Page, groupId: string): Promise<boolean> {
+  async checkSession(page: Page, _groupId: string): Promise<boolean> {
     try {
-      await page.goto(`https://www.facebook.com/groups/${groupId}`, {
+      // Use FB homepage for a lightweight, fast session check
+      await page.goto('https://www.facebook.com/', {
         waitUntil: 'domcontentloaded',
         timeout: 20000,
       });
       await this.acceptCookieConsent(page);
       const url = page.url();
-      return !url.includes('/login') && !url.includes('/checkpoint');
+      // If we're still on facebook.com (not redirected to /login), session is valid
+      return url.includes('facebook.com') && !url.includes('/login') && !url.includes('/checkpoint');
     } catch {
       return false;
     }
@@ -107,6 +109,37 @@ export class FbSessionService {
 
   private async injectCookies(context: BrowserContext, rawCookie: string): Promise<void> {
     if (!rawCookie) return;
+
+    // Auto-detect: JSON array or Cookie-Editor export ({"cookies":[...]} or [{...}])
+    const trimmed = rawCookie.trim();
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        // Cookie-Editor exports as {"url":"...","cookies":[...]} or plain array
+        const cookieArr: any[] = Array.isArray(parsed) ? parsed : (parsed.cookies || []);
+        const fbCookies = cookieArr
+          .filter((c: any) => (c.domain || '').includes('facebook.com'))
+          .map((c: any) => ({
+            name: c.name,
+            value: c.value,
+            domain: c.domain.startsWith('.') ? c.domain : `.facebook.com`,
+            path: c.path || '/',
+            httpOnly: c.httpOnly ?? true,
+            secure: c.secure ?? true,
+            sameSite: this.mapSameSite(c.sameSite),
+            expires: c.expirationDate ? Math.floor(c.expirationDate) : undefined,
+          }));
+        if (fbCookies.length > 0) {
+          await context.addCookies(fbCookies);
+          this.logger.log(`🍪 Injected ${fbCookies.length} FB cookies from JSON format`);
+          return;
+        }
+      } catch (e) {
+        this.logger.warn(`JSON cookie parse failed, falling back to string format: ${e}`);
+      }
+    }
+
+    // Fallback: plain string format "name=value; name2=value2"
     const cookies = rawCookie
       .split(';')
       .map((c) => c.trim())
@@ -124,6 +157,12 @@ export class FbSessionService {
         };
       });
     await context.addCookies(cookies);
+  }
+
+  private mapSameSite(val: string): 'Strict' | 'Lax' | 'None' {
+    if (val === 'strict') return 'Strict';
+    if (val === 'lax') return 'Lax';
+    return 'None'; // 'no_restriction', 'unspecified', undefined → None
   }
 
   private async acceptCookieConsent(page: Page): Promise<void> {
