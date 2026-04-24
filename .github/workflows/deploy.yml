@@ -61,3 +61,18 @@ jobs:
             docker compose logs backend --tail=30
 
             echo "✅ Deploy complete!"
+
+      - name: Install otel-cli
+        if: always()
+        run: curl -sL https://github.com/equinix-labs/otel-cli/releases/download/v0.4.4/otel-cli_0.4.4_linux_amd64.tar.gz | tar xz otel-cli
+
+      - name: Send Trace to SigNoz
+        if: always()
+        run: |
+          STATUS_CODE=$([ "${{ job.status }}" = "success" ] && echo 0 || echo 2)
+          ./otel-cli span --service "github-actions" --name "Deploy Badminton Hub" \
+            --attrs "job.status=${{ job.status }},github.repository=${{ github.repository }},github.run_id=${{ github.run_id }}" \
+            --endpoint "https://otel.khanhdp.com" \
+            --protocol "http/protobuf" \
+            --status-code "$STATUS_CODE" \
+            --header "Authorization=Bearer kido_super_secret_token_2026"

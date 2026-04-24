@@ -6,6 +6,7 @@ import { Meilisearch } from 'meilisearch';
 import { FbRawContent } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
+import { trace } from '@opentelemetry/api';
 
 const AI_MODEL = process.env.AI_MODEL || 'gemma-4-31b-it';
 const BATCH_SIZE = 5; // Process N raw posts per cron tick
@@ -158,6 +159,11 @@ Hãy NỖ LỰC TỐI ĐA suy luận tên sân từ từ lóng/viết tắt, tuy
 Trả về JSON hợp lệ theo schema đã định nghĩa.
 `.trim();
 
+    const tracer = trace.getTracer('badminton-ai-classifier');
+    const span = tracer.startSpan('gemini.generateContent');
+    span.setAttribute('gen_ai.system', 'gemini');
+    span.setAttribute('gen_ai.request.model', AI_MODEL);
+    
     try {
       const response = await this.ai.models.generateContent({
         model: AI_MODEL,
@@ -212,6 +218,13 @@ Trả về JSON hợp lệ theo schema đã định nghĩa.
           },
         },
       });
+
+      if (response.usageMetadata) {
+        span.setAttribute('gen_ai.usage.input_tokens', response.usageMetadata.promptTokenCount || 0);
+        span.setAttribute('gen_ai.usage.output_tokens', response.usageMetadata.candidatesTokenCount || 0);
+        span.setAttribute('gen_ai.usage.total_tokens', response.usageMetadata.totalTokenCount || 0);
+      }
+      span.end();
 
       const text = response.text || '';
       const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -287,7 +300,9 @@ Trả về JSON hợp lệ theo schema đã định nghĩa.
       this.logger.log(
         `✅ Classified: [${ai.post_type}] "${ai.court_name || 'N/A'}" | conf=${ai.confidence} | post ${raw.fb_post_id}`,
       );
-    } catch (err) {
+    } catch (err: any) {
+      span.recordException(err);
+      span.end();
       this.logger.error(`AI/DB error for raw post ${raw.id}:`, err);
       // Don't mark as processed — will retry next cron
     }
