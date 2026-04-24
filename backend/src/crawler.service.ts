@@ -89,12 +89,14 @@ export class CrawlerService {
       });
 
       const context = await browser.newContext({
-        userAgent:
-          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        userAgent: this.fbScraper.getRandomUserAgent(),
         locale: 'vi-VN',
+        viewport: { width: 1366, height: 768 },
+        timezoneId: 'Asia/Ho_Chi_Minh',
       });
 
       const page = await context.newPage();
+      await this.fbScraper.injectStealthScripts(page);
 
       // --- Session bootstrap (Bypassed) ---
       // Removed fbSession.ensureSession to avoid account lockout
