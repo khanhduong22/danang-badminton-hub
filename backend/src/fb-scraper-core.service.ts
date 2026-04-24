@@ -23,6 +23,7 @@ export class FbScraperCoreService {
 
     try {
       await page.goto(feedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await this.removeLoginOverlay(page);
     } catch {
       this.logger.warn(`Timeout loading feed for group ${groupId}`);
       return [];
@@ -60,6 +61,7 @@ export class FbScraperCoreService {
 
     try {
       await page.goto(postUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await this.removeLoginOverlay(page);
       // Wait for either the dialog, article container, or main container to appear
       await page.waitForSelector('div[role="dialog"], div[role="article"], div[role="main"]', { timeout: 10000 }).catch(() => {});
       await this.sleep(1000); // Give React a moment to finish hydrating
@@ -125,9 +127,10 @@ export class FbScraperCoreService {
 
       // Detect Login Wall ("Se connecter" / "Log in")
       const fullBodyText = document.querySelector('body')?.innerText || '';
-      if (!result.postText && (fullBodyText.includes('Se connecter') || fullBodyText.includes('Log In') || fullBodyText.includes('Đăng nhập'))) {
-         result.postText = '[LOGIN_WALL_DETECTED]';
-      }
+      // We no longer mark as [LOGIN_WALL_DETECTED] since we actively remove the overlay
+      // if (!result.postText && (fullBodyText.includes('Se connecter') || fullBodyText.includes('Log In') || fullBodyText.includes('Đăng nhập'))) {
+      //    result.postText = '[LOGIN_WALL_DETECTED]';
+      // }
 
       // Clean up text
       if (result.postText && result.postText !== '[LOGIN_WALL_DETECTED]') {
@@ -185,5 +188,39 @@ export class FbScraperCoreService {
 
   public sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async removeLoginOverlay(page: Page): Promise<void> {
+    try {
+      // Give it a moment to render the overlay
+      await this.sleep(1000);
+      await page.evaluate(() => {
+        const overlays = document.querySelectorAll('.__fb-light-mode.x1n2onr6.xzkaem6, form[id="login_popup_cta_form"]');
+        overlays.forEach((el) => {
+           // find the topmost container of the overlay to remove
+           const root = el.closest('.__fb-light-mode') || el;
+           root.remove();
+        });
+        
+        // Sometimes FB uses role="dialog" or generic modal wrappers for the login block
+        document.querySelectorAll('div[role="dialog"]').forEach(dialog => {
+           if (dialog.innerHTML.includes('Log in') || dialog.innerHTML.includes('Đăng nhập') || dialog.innerHTML.includes('login_popup_cta_form')) {
+             dialog.remove();
+           }
+        });
+
+        // Restore scrolling if it was locked
+        if (document.body) {
+           document.body.style.overflow = 'auto';
+           document.body.style.position = 'static';
+        }
+        if (document.documentElement) {
+           document.documentElement.style.overflow = 'auto';
+           document.documentElement.style.position = 'static';
+        }
+      });
+    } catch (e) {
+      this.logger.warn(`Could not remove login overlay: ${e}`);
+    }
   }
 }

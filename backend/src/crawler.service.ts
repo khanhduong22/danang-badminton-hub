@@ -96,14 +96,9 @@ export class CrawlerService {
 
       const page = await context.newPage();
 
-      // --- Session bootstrap ---
-      const loggedIn = await this.fbSession.ensureSession(context, page, FB_GROUP_IDS[0]);
-      if (!loggedIn) {
-        this.logger.error(
-          '💥 Không thể đăng nhập Facebook. Kiểm tra FB_EMAIL/FB_PASSWORD hoặc FB_COOKIE.',
-        );
-        return;
-      }
+      // --- Session bootstrap (Bypassed) ---
+      // Removed fbSession.ensureSession to avoid account lockout
+      this.logger.log('Bypassing Facebook login, proceeding as anonymous...');
 
       // Phase 1: Collect post URLs across all configured groups
       const allPostUrls: { groupId: string; postId: string; postUrl: string }[] = [];
@@ -150,8 +145,7 @@ export class CrawlerService {
         await this.fbScraper.sleep(POST_DELAY_MS);
       }
 
-      // Persist session cookies so next run skips login
-      await this.fbSession.saveSession(context);
+      // Session saving bypassed
 
       this.logger.log(`✅ Cào xong: ${toProcess.length} bài mới nhét vào DB`);
     } catch (err) {
@@ -188,11 +182,8 @@ export class CrawlerService {
       });
       const page = await context.newPage();
 
-      const loggedIn = await this.fbSession.ensureSession(context, page, FB_GROUP_IDS[0]);
-      if (!loggedIn) {
-        this.logger.error('💥 Cannot login for recheck.');
-        return;
-      }
+      // Session bootstrap bypassed
+      this.logger.log('Bypassing Facebook login for recheck...');
 
       let closedCount = 0;
       // Slang dictionary for closed badminton matches
