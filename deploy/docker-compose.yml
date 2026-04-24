@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   db:
@@ -47,7 +47,7 @@ services:
       - FB_EMAIL=${FB_EMAIL}
       - FB_PASSWORD=${FB_PASSWORD}
       - FB_COOKIE=${FB_COOKIE}
-      - FB_GROUP_IDS=${FB_GROUP_IDS:-1867140416954200}
+      - FB_GROUP_IDS=${FB_GROUP_IDS:-594956003862912}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://172.17.0.1:4318
     ports:
       - "3001:3001"

@@ -10,6 +10,8 @@ jobs:
     name: Deploy to Contabo VPS
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      actions: read
 
     steps:
       - name: Checkout
@@ -70,8 +72,9 @@ jobs:
         if: always()
         run: |
           STATUS_CODE=$([ "${{ job.status }}" = "success" ] && echo 0 || echo 2)
+          # Use specific tags (repository.name) expected by SigNoz CI/CD Dashboard
           ./otel-cli span --service "github-actions" --name "Deploy Badminton Hub" \
-            --attrs "job.status=${{ job.status }},github.repository=${{ github.repository }},github.run_id=${{ github.run_id }}" \
+            --attrs "job.status=${{ job.status }},repository.name=${{ github.repository }},github.run_id=${{ github.run_id }}" \
             --endpoint "https://otel.khanhdp.com" \
             --protocol "http/protobuf" \
             --status-code "$STATUS_CODE" \
