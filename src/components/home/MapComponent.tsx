@@ -45,10 +45,10 @@ export default function MapComponent({ courts = [] }: { courts?: any[] }) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {courts.map((court) => (
-          court.lat && court.lng ? (
+          court.latitude && court.longitude ? (
             <Marker 
               key={court.id} 
-              position={[court.lat, court.lng]}
+              position={[court.latitude, court.longitude]}
               icon={icon}
             >
               <Popup>
@@ -59,7 +59,7 @@ export default function MapComponent({ courts = [] }: { courts?: any[] }) {
                     SĐT: {court.contact_number || "Liên hệ trực tiếp"}
                   </p>
                   <a 
-                    href={court.maps_url || `https://www.google.com/maps?q=${court.lat},${court.lng}`} 
+                    href={court.maps_url || `https://www.google.com/maps?q=${court.latitude},${court.longitude}`} 
                     target="_blank" 
                     rel="noreferrer" 
                     className="mt-2 block w-full text-center bg-primary text-primary-foreground text-xs py-1.5 rounded"

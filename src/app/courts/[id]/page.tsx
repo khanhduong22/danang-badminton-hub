@@ -5,10 +5,9 @@ import { notFound } from "next/navigation";
 
 async function getCourt(id: string) {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/courts`,
-      { next: { revalidate: 3600 } }
-    );
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://144.91.88.242:3001";
+    const baseUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+    const res = await fetch(`${baseUrl}/api/courts`, { next: { revalidate: 3600 } });
     if (!res.ok) return null;
     const courts = await res.json();
      
@@ -36,7 +35,7 @@ export default async function CourtDetailPage({ params }: { params: Promise<{ id
     notFound();
   }
 
-  const mapUrl = `https://www.google.com/maps?q=${court.lat},${court.lng}`;
+  const mapUrl = `https://www.google.com/maps?q=${court.latitude},${court.longitude}`;
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl min-h-[70vh]">
@@ -82,14 +81,14 @@ export default async function CourtDetailPage({ params }: { params: Promise<{ id
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Bản đồ</h2>
             <div className="aspect-video w-full rounded-2xl overflow-hidden border border-gray-200 bg-gray-100 relative">
-              {court.lat && court.lng ? (
+              {court.latitude && court.longitude ? (
                 <iframe
                   width="100%"
                   height="100%"
                   style={{ border: 0 }}
                   loading="lazy"
                   allowFullScreen
-                  src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}&q=${court.lat},${court.lng}&zoom=15`}
+                  src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}&q=${court.latitude},${court.longitude}&zoom=15`}
                 ></iframe>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-gray-400">

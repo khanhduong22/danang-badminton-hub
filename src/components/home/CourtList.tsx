@@ -64,7 +64,7 @@ export function CourtList({ courts }: { courts: any[] }) {
               
               <div className="mt-auto grid grid-cols-2 gap-3 pt-4 border-t">
                 <a 
-                  href={`https://www.google.com/maps?q=${court.lat},${court.lng}`}
+                  href={`https://www.google.com/maps?q=${court.latitude},${court.longitude}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center justify-center gap-2 rounded-lg border border-border bg-background py-2 text-sm font-medium transition-colors hover:bg-muted"
