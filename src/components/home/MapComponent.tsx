@@ -17,22 +17,15 @@ const icon = L.icon({
   shadowSize: [41, 41]
 });
 
-export default function MapComponent() {
+export default function MapComponent({ courts = [] }: { courts?: any[] }) {
   const [mounted, setMounted] = useState(false);
-
-   
-  const [courts, setCourts] = useState<any[]>([]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/courts`)
-      .then((res) => res.json())
-      .then((data) => setCourts(data))
-      .catch((err) => console.error(err));
   }, []);
 
-  if (!mounted || courts.length === 0) {
+  if (!mounted) {
     return <div className="w-full h-full min-h-[400px] lg:min-h-[600px] bg-emerald-50 rounded-2xl animate-pulse"></div>;
   }
 

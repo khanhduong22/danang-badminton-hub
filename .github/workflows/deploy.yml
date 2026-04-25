@@ -78,4 +78,4 @@ jobs:
             --endpoint "https://otel.khanhdp.com" \
             --protocol "http/protobuf" \
             --status-code "$STATUS_CODE" \
-            --header "Authorization=Bearer kido_super_secret_token_2026"
+            --otlp-headers "Authorization=Bearer kido_super_secret_token_2026"

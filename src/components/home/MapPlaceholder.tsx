@@ -11,6 +11,6 @@ const MapComponent = dynamic(() => import("./MapComponent"), {
   )
 });
 
-export function MapPlaceholder() {
-  return <MapComponent />;
+export function MapPlaceholder({ courts }: { courts: any[] }) {
+  return <MapComponent courts={courts} />;
 }

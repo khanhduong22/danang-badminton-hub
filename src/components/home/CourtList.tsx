@@ -2,20 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Phone, Navigation, Activity } from "lucide-react";
 
-async function getCourts() {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/courts`, {
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return [];
-    return await res.json();
-  } catch {
-    return [];
-  }
-}
-
-export async function CourtList() {
-  const courts = await getCourts();
+export function CourtList({ courts }: { courts: any[] }) {
   // Sort or pick top courts (for now just take first 9)
   const displayCourts = courts.slice(0, 9);
   return (
