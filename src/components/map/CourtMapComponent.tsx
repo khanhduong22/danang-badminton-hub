@@ -100,8 +100,8 @@ export default function CourtMapComponent({ posts }: CourtMapProps) {
     <div className="h-[600px] w-full rounded-2xl overflow-hidden border border-gray-200 shadow-sm z-0 relative">
       <MapContainer center={center} zoom={13} className="h-full w-full" scrollWheelZoom={true}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; Google Maps'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
         />
 
         {courts.map(({ court, posts }) => {

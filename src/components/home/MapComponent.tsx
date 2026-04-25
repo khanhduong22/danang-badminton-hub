@@ -41,8 +41,8 @@ export default function MapComponent({ courts = [] }: { courts?: any[] }) {
         className="w-full h-full absolute inset-0"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; Google Maps'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
         />
         {courts.map((court) => (
           court.latitude && court.longitude ? (
