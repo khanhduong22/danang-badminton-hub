@@ -87,9 +87,94 @@ export class FbSessionService {
         timeout: 20000,
       });
       await this.acceptCookieConsent(page);
-      const url = page.url();
-      // If we're still on facebook.com (not redirected to /login), session is valid
-      return url.includes('facebook.com') && !url.includes('/login') && !url.includes('/checkpoint');
+
+      let url = page.url();
+
+      // If checkpoint → definitely invalid
+      if (url.includes('/checkpoint')) return false;
+
+      // Handle "Continue as [Name]" interstitial wall
+      // FB shows this at /login/?next=... but with no actual login form — session IS valid
+      if (url.includes('/login')) {
+        const hasLoginForm = await page.evaluate(
+          () => !!document.querySelector('form#login_popup_cta_form, input[name="email"], input[name="pass"]'),
+        );
+
+        if (hasLoginForm) {
+          // Real login page → session is truly expired
+          return false;
+        }
+
+        // It's the "Continue as" interstitial — try clicking through
+        this.logger.log('🚧 checkSession: detected "Continue as" interstitial, clicking through...');
+        const dismissed = await this.dismissContinueAsWall(page);
+        if (dismissed) {
+          url = page.url();
+          return url.includes('facebook.com') && !url.includes('/login') && !url.includes('/checkpoint');
+        }
+        // Could not dismiss but it's not a real login form — treat as valid anyway
+        // The Phase 1 scraper will handle the interstitial when navigating to the group
+        this.logger.warn('⚠️ Could not auto-dismiss interstitial, but session appears valid (no login form)');
+        return true;
+      }
+
+      return url.includes('facebook.com');
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Dismiss the "Continue as [Name]" / "Tiếp tục" interstitial.
+   * Lightweight version for session checks.
+   */
+  private async dismissContinueAsWall(page: Page): Promise<boolean> {
+    try {
+      const continueSelectors = [
+        'a:has-text("Tiếp tục")',
+        'button:has-text("Tiếp tục")',
+        'div[role="button"]:has-text("Tiếp tục")',
+        'a:has-text("Continue")',
+        'button:has-text("Continue")',
+        'div[role="button"]:has-text("Continue")',
+      ];
+
+      for (const selector of continueSelectors) {
+        try {
+          const el = page.locator(selector).first();
+          if (await el.isVisible({ timeout: 1000 })) {
+            await el.click({ timeout: 3000 });
+            this.logger.log(`✅ Clicked continue button: ${selector}`);
+            await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
+            await new Promise((r) => setTimeout(r, 2000));
+            return true;
+          }
+        } catch {
+          // Try next selector
+        }
+      }
+
+      // Fallback: JS click
+      const clicked = await page.evaluate(() => {
+        const els = document.querySelectorAll('a, button, div[role="button"], span[role="button"]');
+        for (const el of els) {
+          const text = (el as HTMLElement).innerText?.trim() || '';
+          if (/^(Tiếp tục|Continue|Continue as)/i.test(text) && text.length < 50) {
+            (el as HTMLElement).click();
+            return text;
+          }
+        }
+        return null;
+      });
+
+      if (clicked) {
+        this.logger.log(`✅ JS-clicked: "${clicked}"`);
+        await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
+        await new Promise((r) => setTimeout(r, 2000));
+        return true;
+      }
+
+      return false;
     } catch {
       return false;
     }

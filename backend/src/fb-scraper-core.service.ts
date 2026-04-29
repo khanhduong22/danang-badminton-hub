@@ -43,6 +43,85 @@ export class FbScraperCoreService {
     });
   }
 
+  /**
+   * Dismiss the "Continue as [Name]" / "Tiếp tục" interstitial page.
+   * Facebook shows this wall on headless browsers even with valid cookies.
+   * It requires clicking the continue button before granting access to groups.
+   */
+  async dismissContinueAsWall(page: Page): Promise<boolean> {
+    try {
+      // Check if we're on the interstitial page by looking for known patterns
+      const bodyText = await page.evaluate(() => document.body?.innerText?.substring(0, 500) || '');
+      const isInterstitial =
+        bodyText.includes('Tiếp tục') ||
+        bodyText.includes('Continue as') ||
+        bodyText.includes('Dùng trang cá nhân khác') ||
+        bodyText.includes('Use another account');
+
+      if (!isInterstitial) return false;
+
+      this.logger.log('🚧 Detected "Continue as" interstitial wall, attempting to bypass...');
+
+      // Strategy 1: Click the main "Tiếp tục" / "Continue" button
+      const continueSelectors = [
+        // Vietnamese
+        'a:has-text("Tiếp tục")',
+        'button:has-text("Tiếp tục")',
+        'div[role="button"]:has-text("Tiếp tục")',
+        'span:has-text("Tiếp tục")',
+        // English
+        'a:has-text("Continue")',
+        'button:has-text("Continue")',
+        'div[role="button"]:has-text("Continue")',
+      ];
+
+      for (const selector of continueSelectors) {
+        try {
+          const el = page.locator(selector).first();
+          if (await el.isVisible({ timeout: 1000 })) {
+            await el.click({ timeout: 3000 });
+            this.logger.log(`✅ Clicked continue button via: ${selector}`);
+            // Wait for navigation after clicking
+            await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
+            await this.sleep(2000);
+            return true;
+          }
+        } catch {
+          // Try next selector
+        }
+      }
+
+      // Strategy 2: Find the first prominent link/button that looks like a continue action
+      const clicked = await page.evaluate(() => {
+        const elements = document.querySelectorAll('a, button, div[role="button"], span[role="button"]');
+        for (const el of elements) {
+          const text = (el as HTMLElement).innerText?.trim() || '';
+          if (
+            /^(Tiếp tục|Continue|Continue as)/i.test(text) &&
+            text.length < 50
+          ) {
+            (el as HTMLElement).click();
+            return text;
+          }
+        }
+        return null;
+      });
+
+      if (clicked) {
+        this.logger.log(`✅ JS-clicked continue element: "${clicked}"`);
+        await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
+        await this.sleep(2000);
+        return true;
+      }
+
+      this.logger.warn('⚠️ Could not find continue button on interstitial page');
+      return false;
+    } catch (err) {
+      this.logger.warn(`dismissContinueAsWall error: ${err}`);
+      return false;
+    }
+  }
+
   async scrapePhase1Urls(
     page: Page,
     groupId: string,
@@ -56,6 +135,18 @@ export class FbScraperCoreService {
       try {
         await page.goto(feedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await this.removeLoginOverlay(page);
+
+        // Handle Facebook's "Continue as" interstitial wall
+        const wasDismissed = await this.dismissContinueAsWall(page);
+        if (wasDismissed) {
+          // After dismissing, we may need to navigate to the group again
+          const currentUrl = page.url();
+          if (!currentUrl.includes(`/groups/${groupId}`)) {
+            this.logger.log('🔄 Re-navigating to group after dismissing interstitial...');
+            await page.goto(feedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await this.removeLoginOverlay(page);
+          }
+        }
 
         // Wait for group feed to hydrate (FB renders lazily after React mount)
         await this.sleep(2000);
