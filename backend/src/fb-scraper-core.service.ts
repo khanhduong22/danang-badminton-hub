@@ -140,14 +140,11 @@ export class FbScraperCoreService {
         // Handle Facebook's "Continue as" interstitial wall
         const wasDismissed = await this.dismissContinueAsWall(page);
         if (wasDismissed) {
-          // After dismissing, we may need to navigate to the group again
-          const currentUrl = page.url();
-          if (!currentUrl.includes(`/groups/${groupId}`)) {
-            this.logger.log('🔄 Re-navigating to group after dismissing interstitial...');
-            await page.goto(feedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await this.removeLoginOverlay(page);
-            await this.acceptCookieConsent(page);
-          }
+          // FB's ?next= param should auto-redirect to the group after clicking "Tiếp tục".
+          // Wait for the redirect to complete and accept any follow-up cookie consent.
+          await this.sleep(3000);
+          await this.acceptCookieConsent(page);
+          await this.removeLoginOverlay(page);
         }
 
         // Wait for group feed to hydrate (FB renders lazily after React mount)
