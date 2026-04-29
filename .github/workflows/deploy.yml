@@ -47,6 +47,7 @@ jobs:
             FB_PASSWORD=${{ secrets.FB_PASSWORD }}
             FB_COOKIE=${{ secrets.FB_COOKIE }}
             FB_GROUP_IDS=${{ secrets.FB_GROUP_IDS }}
+            APIFY_PROXY_PASSWORD=${{ secrets.APIFY_PROXY_PASSWORD }}
             EOF
 
             # Install Playwright Chromium in backend if needed

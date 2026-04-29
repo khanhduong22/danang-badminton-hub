@@ -98,7 +98,8 @@ export class CrawlerService {
 
     let browser: Browser | null = null;
     try {
-      browser = await chromium.launch({
+      const proxyPassword = process.env.APIFY_PROXY_PASSWORD;
+      const launchOptions: any = {
         headless: true,
         executablePath: process.env.CHROME_BIN || undefined,
         args: [
@@ -107,7 +108,21 @@ export class CrawlerService {
           '--disable-dev-shm-usage',
           '--disable-blink-features=AutomationControlled',
         ],
-      });
+      };
+
+      // Route through Apify Residential Proxy (Vietnamese IP) to bypass FB datacenter detection
+      if (proxyPassword) {
+        launchOptions.proxy = {
+          server: 'http://proxy.apify.com:8000',
+          username: 'auto',
+          password: `${proxyPassword},country-VN`,
+        };
+        this.logger.log('🌐 Using Apify Residential Proxy (VN)');
+      } else {
+        this.logger.warn('⚠️ APIFY_PROXY_PASSWORD not set, using direct connection (may be blocked by FB)');
+      }
+
+      browser = await chromium.launch(launchOptions);
 
       const context = await browser.newContext({
         userAgent: this.fbScraper.getRandomUserAgent(),
@@ -302,7 +317,8 @@ export class CrawlerService {
   }
 
   private async launchBrowser() {
-    const browser = await chromium.launch({
+    const proxyPassword = process.env.APIFY_PROXY_PASSWORD;
+    const launchOptions: any = {
       headless: true,
       executablePath: process.env.CHROME_BIN || undefined,
       args: [
@@ -311,7 +327,17 @@ export class CrawlerService {
         '--disable-dev-shm-usage',
         '--disable-blink-features=AutomationControlled',
       ],
-    });
+    };
+
+    if (proxyPassword) {
+      launchOptions.proxy = {
+        server: 'http://proxy.apify.com:8000',
+        username: 'auto',
+        password: `${proxyPassword},country-VN`,
+      };
+    }
+
+    const browser = await chromium.launch(launchOptions);
     const context = await browser.newContext({
       userAgent: this.fbScraper.getRandomUserAgent(),
       locale: 'vi-VN',
