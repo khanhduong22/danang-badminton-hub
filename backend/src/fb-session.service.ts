@@ -2,12 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { BrowserContext, Page } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
+import { FbScraperCoreService } from './fb-scraper-core.service';
 
 const SESSION_FILE = path.join(process.cwd(), 'storage', 'fb_session.json');
 
 @Injectable()
 export class FbSessionService {
   private readonly logger = new Logger(FbSessionService.name);
+
+  constructor(private readonly fbScraper: FbScraperCoreService) {}
 
   /**
    * Load session into context using this priority:
@@ -81,6 +84,9 @@ export class FbSessionService {
 
   async checkSession(page: Page, _groupId: string): Promise<boolean> {
     try {
+      // Must inject stealth scripts before ANY navigation
+      await this.fbScraper.injectStealthScripts(page);
+
       // Use FB homepage for a lightweight, fast session check
       await page.goto('https://www.facebook.com/', {
         waitUntil: 'domcontentloaded',
