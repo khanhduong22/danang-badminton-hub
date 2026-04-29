@@ -135,6 +135,7 @@ export class FbScraperCoreService {
       try {
         await page.goto(feedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await this.removeLoginOverlay(page);
+        await this.acceptCookieConsent(page);
 
         // Handle Facebook's "Continue as" interstitial wall
         const wasDismissed = await this.dismissContinueAsWall(page);
@@ -145,6 +146,7 @@ export class FbScraperCoreService {
             this.logger.log('🔄 Re-navigating to group after dismissing interstitial...');
             await page.goto(feedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
             await this.removeLoginOverlay(page);
+            await this.acceptCookieConsent(page);
           }
         }
 
@@ -404,6 +406,57 @@ export class FbScraperCoreService {
       });
     } catch (e) {
       this.logger.warn(`removeLoginOverlay error: ${e}`);
+    }
+  }
+
+  /**
+   * Accept Facebook's cookie consent banner.
+   * FB shows "Cho phép sử dụng cookie của Facebook trên trình duyệt này?" on headless browsers.
+   */
+  private async acceptCookieConsent(page: Page): Promise<void> {
+    try {
+      const selectors = [
+        // Vietnamese
+        'button[data-cookiebanner="accept_button"]',
+        'button[title="Cho phép tất cả cookie"]',
+        'button[title="Cho phép cookie thiết yếu và tùy chọn"]',
+        // English
+        'button[title="Allow all cookies"]',
+        'button[title="Allow essential and optional cookies"]',
+        '[aria-label="Allow all cookies"]',
+      ];
+      for (const sel of selectors) {
+        const btn = page.locator(sel);
+        if ((await btn.count()) > 0) {
+          this.logger.log(`🍪 Cookie consent banner found (${sel}), accepting...`);
+          await btn.first().click();
+          await this.sleep(2000);
+          return;
+        }
+      }
+
+      // Fallback: look for any button containing "Cho phép" or "Allow" text
+      const clicked = await page.evaluate(() => {
+        const buttons = document.querySelectorAll('button, div[role="button"], a[role="button"]');
+        for (const btn of buttons) {
+          const text = (btn as HTMLElement).innerText?.trim() || '';
+          if (
+            /^(Cho phép tất cả|Cho phép cookie|Allow all|Allow essential|Accept all)/i.test(text) &&
+            text.length < 80
+          ) {
+            (btn as HTMLElement).click();
+            return text;
+          }
+        }
+        return null;
+      });
+
+      if (clicked) {
+        this.logger.log(`🍪 Cookie consent dismissed via JS click: "${clicked}"`);
+        await this.sleep(2000);
+      }
+    } catch {
+      // Ignore — consent may not appear
     }
   }
 }
